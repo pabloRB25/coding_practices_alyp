@@ -126,6 +126,8 @@ Si `OTEL_EXPORTER_OTLP_ENDPOINT` no está configurada, OTel corre en modo no-op 
 
 ## FASE 5 — Variables de entorno OTel por ambiente
 
+> Tabla única de variables y dueños: `contracts/env-vars.md` del repo de estándares.
+
 Las claves base del logger/extractor las instala `agentic-logging` (ver `env.example` en los assets de ese skill).
 Aquí solo se configuran los exporters por ambiente:
 

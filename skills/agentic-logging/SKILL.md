@@ -153,6 +153,7 @@ npm run agent:gps tr_12345
 ## Per-project variables (only these change)
 
 `SERVICE_NAME`, `APP_SOURCE_DIRS`, `LOG_PROVIDER` (+ provider creds). Code is identical across projects.
+Canonical table (owners + consumers): `contracts/env-vars.md` in the standards repo.
 
 ## Guardrails
 
