@@ -1,5 +1,6 @@
 ---
 name: alyp-new-project
+version: 1.1.0
 description: >
   Alyp Studio — New Project Setup. Orquestador para crear proyectos SaaS enterprise
   con el stack Turborepo · Next.js (última estable) · Supabase · Vercel · GitHub.

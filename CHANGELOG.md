@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.0.0 — 2026-07-06 (en curso)
+
+### El repo pasa a ser fuente de verdad + instalador
+
+- Los 7 skills completos (con assets/references/templates) viven en `skills/`; `~/.claude/skills/` es una instalación (symlink en dev, copia en equipos).
+- Capa `contracts/`: invariantes agnósticos versionados, separados del perfil de stack next·supabase·vercel.
+- Manifiesto de estándares por repo (`standards.yaml`) + sello `logging-standard: v1`.
+- QA cableado como FASE 5.8 de alyp-new-project; FASE 5.5 deja de ser placeholder.
+- devstral-orchestration v2.6: tiers abstractos + `capacity.yaml` por máquina.
+- Instalador `scripts/install.sh` + empaquetado como plugin de Claude Code.
+- Meta-QA: `lint-skills.mjs` + canario en CI.
+
 ## v1 — 2026-05-29
 
 ### Versión inicial del ecosistema de skills

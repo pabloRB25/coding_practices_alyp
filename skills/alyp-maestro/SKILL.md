@@ -1,5 +1,6 @@
 ---
 name: alyp-maestro
+version: 1.0.0
 description: >
   Curador del conocimiento LOCAL de un proyecto Alyp. Tras cerrar una feature o
   tarea, destila lo aprendido en skills locales versionadas en el repo del

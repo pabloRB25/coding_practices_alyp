@@ -1,5 +1,6 @@
 ---
 name: alyp-observability
+version: 1.1.0
 description: >
   Alyp Studio — Observabilidad y Logs. Instala o audita la capa de observabilidad
   estándar en proyectos SaaS enterprise: logging agéntico (delegado al skill

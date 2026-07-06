@@ -1,5 +1,6 @@
 ---
 name: alyp-agentic-standards
+version: 1.1.0
 description: >
   Estándar de código "agentic-ready" de Alyp Studio (sello: agentic-standard: v1).
   Usar cuando el usuario pida aplicar el estándar agentic-ready, crear una feature

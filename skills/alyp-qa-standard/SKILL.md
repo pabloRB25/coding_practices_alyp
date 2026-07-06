@@ -1,5 +1,6 @@
 ---
 name: alyp-qa-standard
+version: 1.0.0
 description: Usar cuando el usuario pida instalar o auditar el estándar de pruebas de Alyp (sello qa-standard v1), scaffoldear la carpeta qa/ en un proyecto, crear o mantener el catálogo de flujos de negocio en YAML, configurar Playwright E2E con oráculos UI+DB+logs, montar el smoke agéntico post-deploy, agregar pruebas de RLS con pgTAP, o mencione "qa-standard", "catálogo de flujos", "veredicto.json", "smoke agéntico" o "pruebas automatizadas de flujos de negocio".
 ---
 
