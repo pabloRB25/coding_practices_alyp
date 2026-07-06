@@ -1,0 +1,12 @@
+{
+  "name": "alyp-studio",
+  "owner": { "name": "Alyp Studio", "email": "pr@pablorodriguezb.com" },
+  "description": "Marketplace de Alyp Studio: ecosistema de skills y agentes de desarrollo SaaS (agentic-standard: v1).",
+  "plugins": [
+    {
+      "name": "alyp-dev-standards",
+      "source": "./",
+      "description": "Skills + agentes del ecosistema de desarrollo Alyp (contratos agnósticos, perfil next·supabase·vercel)."
+    }
+  ]
+}
