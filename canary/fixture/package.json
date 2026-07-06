@@ -1,0 +1,5 @@
+{
+  "name": "canary-fixture",
+  "private": true,
+  "type": "module"
+}

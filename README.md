@@ -99,6 +99,12 @@ provee), y que las referencias a `assets/`/`references/`/`templates/`
 mencionadas en el `SKILL.md` existan en disco. Correrlo antes de todo PR que
 toque `skills/`.
 
+**Canario funcional**: `./scripts/canary.sh` es meta-QA — prueba que los
+assets de los skills sigan instalables y funcionales (compilan bajo TS
+estricto, el lint agentic dispara donde debe). Corre local antes de un PR
+grande y automático en CI (workflow `canario-ecosistema`) ante cambios en
+`skills/`, `contracts/`, `scripts/` o `canary/`.
+
 **Cómo versionar un cambio a un skill**:
 1. Editar el skill correspondiente en `skills/<nombre>/`.
 2. Incrementar `version:` en el frontmatter del `SKILL.md` (semver).
