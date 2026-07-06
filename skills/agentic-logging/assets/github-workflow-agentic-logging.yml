@@ -1,0 +1,49 @@
+name: Agentic Logging Audit
+
+on:
+  pull_request:
+    paths:
+      - '**/*.ts'
+      - '**/*.tsx'
+      - '**/*.js'
+
+jobs:
+  audit:
+    name: Logging Standards Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Verificar que no hay console.* sin wrapper
+      - name: Check for naked console calls
+        run: |
+          FOUND=$(grep -rn "console\.\(log\|error\|warn\)" \
+            --include="*.ts" --include="*.tsx" \
+            --exclude-dir=node_modules \
+            --exclude-dir=.next \
+            --exclude="logger.ts" || true)
+          if [ -n "$FOUND" ]; then
+            echo "::warning::console.* encontrados — usar agenticLogger:"
+            echo "$FOUND"
+          fi
+
+      # Verificar que no hay catch vacíos
+      - name: Check for empty catch blocks
+        run: |
+          FOUND=$(grep -rn "catch\s*([^)]*)\s*{\s*}" \
+            --include="*.ts" --include="*.tsx" \
+            --exclude-dir=node_modules || true)
+          if [ -n "$FOUND" ]; then
+            echo "::error::catch vacíos encontrados — todo error debe loggearse:"
+            echo "$FOUND"
+            exit 1
+          fi

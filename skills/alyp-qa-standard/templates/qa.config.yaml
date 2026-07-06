@@ -1,0 +1,38 @@
+# qa-standard: v1 — manifiesto de pruebas del proyecto
+# Único archivo que cambia entre proyectos. Credenciales SIEMPRE por env var.
+qa-standard: v1
+proyecto: <nombre-del-proyecto>
+
+ambientes:
+  dev:
+    base_url: ${QA_DEV_URL}
+    db: supabase            # proyecto Supabase de desarrollo
+    permite_reset: true     # reset+seed permitidos
+  preview:
+    base_url: ${QA_PREVIEW_URL}   # la inyecta el deploy de Vercel
+    db: branch              # Supabase branch efímero (o el proyecto dev)
+    permite_reset: true
+  staging:
+    base_url: ${QA_STG_URL}
+    db: supabase
+    permite_reset: false    # solo lectura de datos existentes + flujos no destructivos
+  prod:
+    base_url: ${QA_PROD_URL}
+    solo_lectura: true      # JAMÁS escritura ni service role contra prod
+
+oraculos:
+  db:
+    cliente: supabase
+    url_env: QA_SUPABASE_URL              # URL del proyecto del ambiente activo
+    credencial_env: QA_SUPABASE_SERVICE_ROLE  # solo vive en el runner/CI secrets
+    db_url_env: QA_SUPABASE_DB_URL        # cadena postgres directa, SOLO para seeds (psql)
+  logs:
+    formato: agentic-logging-v1
+    correlacion: traceId
+    # consola del browser: cero errores; logs de server: cero nivel "error"
+
+presupuestos:
+  e2e_ci_minutos: 10          # límite duro del job de CI
+  agentic_tokens_corrida: 200000
+
+# criticidades: P0 = smoke post-deploy + CI, P1 = CI, P2 = nocturno

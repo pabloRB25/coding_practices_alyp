@@ -28,30 +28,56 @@ Drains → Axiom/Datadog/Logflare), so there is **no backend dependency in code*
 - Any Node/TS project — not Next.js-specific.
 - For Alyp Studio projects: this skill is invoked automatically by `alyp-observability` (FASE 5.5 of `alyp-new-project`). Use directly only for non-Alyp projects.
 
-## Files this skill installs
+## Files this skill installs (all live in `assets/` of this skill)
 
-- `utils/logger.ts` — `agenticLogger` (error + info/warn/debug), recursive PII scrub,
-  structured location, zero deps. Plus `nuevoTraceId()` and `crearLoggerDeRuta()`.
-- `utils/error-codes.ts` — UPPER_SNAKE codes + `mapearCodigoPostgres()`.
-- `scripts/agent-gps.mjs` — extractor (providers: `local | axiom | http`).
-- `.env.example` keys, `.eslintrc.agentic.cjs`, `.github/workflows/agentic-logging.yml`.
-- `CLAUDE.md.append` — autonomous debugging protocol.
+Do NOT rewrite or regenerate this code — **COPY the files verbatim from this
+skill's `assets/` directory with `cp`**. The only things that change per project
+are env variables (`SERVICE_NAME`, `APP_SOURCE_DIRS`, `LOG_PROVIDER`), never the code.
+
+| Asset | Installs as | Contents |
+|-------|-------------|----------|
+| `assets/logger.ts` | `utils/logger.ts` | `agenticLogger` (error + info/warn/debug), recursive PII scrub, honeypot location, `nuevoTraceId()`, `crearLoggerDeRuta()`. Zero deps. |
+| `assets/error-codes.ts` | `utils/error-codes.ts` | UPPER_SNAKE `CODIGOS` + `mapearCodigoPostgres()`. |
+| `assets/agent-gps.mjs` | `scripts/agent-gps.mjs` | extractor (providers: `local \| axiom \| http`). |
+| `assets/.eslintrc.agentic.cjs` | merge into ESLint config | `no-console` + `no-empty` rules. |
+| `assets/github-workflow-agentic-logging.yml` | `.github/workflows/agentic-logging.yml` | CI audit (naked console.*, empty catch). |
+| `assets/CLAUDE.md.append` | append to project `CLAUDE.md` | autonomous debugging protocol. |
+| `assets/env.example` | merge into `.env.example` | env keys for logger + extractor + OTel. |
 
 ## Steps (mode: bootstrap — new/clean project)
 
+Let `SKILL_DIR=~/.claude/skills/agentic-logging` and `UTILS_DIR` be the project's utils/lib dir.
+
 1. Detect language (TS/JS), package manager, and source layout.
-2. Copy `utils/logger.ts` and `utils/error-codes.ts` into the project's utils/lib.
-   Adapt `APP_SOURCE_DIRS` to the real source dirs (monorepo → include `packages`).
-3. Copy `scripts/agent-gps.mjs`.
+2. Copy the logger and error codes **verbatim** into the project:
+   ```bash
+   cp "$SKILL_DIR/assets/logger.ts"      "$UTILS_DIR/logger.ts"
+   cp "$SKILL_DIR/assets/error-codes.ts" "$UTILS_DIR/error-codes.ts"
+   ```
+   Do not edit the code. Per-project adaptation happens only via env vars:
+   set `APP_SOURCE_DIRS` to the real source dirs (monorepo → include `packages`).
+3. Copy the extractor:
+   ```bash
+   mkdir -p scripts && cp "$SKILL_DIR/assets/agent-gps.mjs" scripts/agent-gps.mjs
+   ```
 4. Add to `package.json` scripts:
    ```json
    "agent:gps":   "node scripts/agent-gps.mjs",
    "logs:errors": "grep '\"nivel\":\"error\"' logs/dev.log || true"
    ```
-5. Merge `.eslintrc.agentic.cjs` rules into the ESLint config.
-6. Copy the CI workflow (`.github/workflows/agentic-logging.yml`).
-7. Append `CLAUDE.md.append` to the project's `CLAUDE.md` (or `AGENTS.md`).
-8. Merge `.env.example` keys into `.env.example` / `.env.local`.
+5. Merge the rules from `assets/.eslintrc.agentic.cjs` into the project's ESLint config
+   (or `cp` it as `.eslintrc.agentic.cjs` and extend it).
+6. Copy the CI workflow:
+   ```bash
+   mkdir -p .github/workflows
+   cp "$SKILL_DIR/assets/github-workflow-agentic-logging.yml" .github/workflows/agentic-logging.yml
+   ```
+7. Append the debugging protocol to the project's `CLAUDE.md` (or `AGENTS.md`):
+   ```bash
+   cat "$SKILL_DIR/assets/CLAUDE.md.append" >> CLAUDE.md
+   ```
+8. Merge the keys from `assets/env.example` into the project's `.env.example` / `.env.local`,
+   filling the per-project values: `SERVICE_NAME`, `APP_SOURCE_DIRS`, `LOG_PROVIDER` (+ provider creds).
 9. For local dev, pipe stdout to a file:
    `next dev | tee logs/dev.log` — add `logs/` to `.gitignore`.
 10. **Verify** (see below).

@@ -1,0 +1,50 @@
+# Alyp Studio — Dependabot
+# Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# Mantiene frescas (a) las dependencias npm del workspace y (b) los pins SHA de
+# las GitHub Actions usadas por los workflows. Agrupado para que un solo PR cubra
+# los bumps minor/patch.
+
+version: 2
+updates:
+  # Dependencias npm (pnpm workspace). `directory: /` cubre la raíz; agregá más
+  # entradas por app/package si querés PRs separados (apps/web, apps/app, packages/*).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Costa_Rica
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    groups:
+      npm-minor-patch:
+        update-types:
+          - minor
+          - patch
+
+  # GitHub Actions de .github/workflows/ — mantiene los pins SHA al día.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      day: monday
+      time: "06:00"
+      timezone: America/Costa_Rica
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: "ci(deps)"
+      include: scope
+    groups:
+      gha-minor-patch:
+        update-types:
+          - minor
+          - patch
