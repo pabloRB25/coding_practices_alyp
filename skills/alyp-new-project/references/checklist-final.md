@@ -72,3 +72,4 @@
 - [ ] `alyp-observability` — FASE 5.5 pendiente de completar el skill
 - [ ] Rate limiting (FASE 5.6) — invocar `vercel:vercel-firewall` al terminar el scaffold
 - [ ] Performance/caching (FASE 5.7) — invocar `vercel:next-cache-components` en primera iteración de features
+- [ ] FASE 5.8 — `alyp-qa-standard` instalado: `qa/` completo, 1 spec P0 verde, workflow `qa-e2e.yml`, sello `qa-standard: v1` + manifiesto

@@ -1,8 +1,14 @@
 # FASE 5.5 — Observabilidad (delegado)
 
-> Invocar el skill `alyp-observability`.
+**Objetivo**: el proyecto nace con la capa de observabilidad estándar de Alyp instalada:
+logging agéntico completo (delegado a `agentic-logging`), instrumentación OpenTelemetry
+(traces + métricas) y exporters agnósticos de backend.
 
-**PLACEHOLDER** — El skill `alyp-observability` está en construcción.
-Por ahora: el `instrumentation.ts` ya creado en FASE 3 sirve como base. Las env vars `OTEL_EXPORTER_*` ya están en `.env.example` y Vercel como placeholders.
+**Delega a**: skill `alyp-observability` (que a su vez invoca `agentic-logging` completo).
 
-Completar esta fase cuando el skill esté disponible.
+> Nota: el `instrumentation.ts` creado en FASE 3 sirve como base sobre la que
+> `alyp-observability` termina de configurar OTel; las env vars `OTEL_EXPORTER_*`
+> definidas ahí quedan cableadas por este skill.
+
+**Gate — no avances si falla**: checklist del skill cumplido; error de prueba en
+staging visible en el backend de logs en < 30 s con `traceId`, `archivo` y `linea`.

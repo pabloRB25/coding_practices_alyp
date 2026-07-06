@@ -92,13 +92,18 @@ Cada fase tiene su detalle completo en `references/fase-NN-<nombre>.md` — leer
 **Gate — no avances si falla**: proyectos creados, GitHub linkeado, env vars configuradas por entorno.
 
 ### FASE 5.5 — Observabilidad (delegado) → `references/fase-55-observabilidad.md`
-**Delega a**: invocar skill `alyp-observability`. (PLACEHOLDER en el original — skill en construcción; el `instrumentation.ts` de FASE 3 sirve como base, env vars `OTEL_EXPORTER_*` ya son placeholders.)
+**Delega a**: skill `alyp-observability` (que a su vez invoca `agentic-logging` completo).
+**Gate — no avances si falla**: checklist del skill cumplido; error de prueba en staging visible en el backend de logs en < 30 s con `traceId`, `archivo` y `linea`.
 
 ### FASE 5.6 — Rate Limiting & Seguridad de tráfico (delegado) → `references/fase-56-rate-limiting.md`
 **Delega a**: skill `vercel:vercel-firewall` — proteger `/api/`, `/auth/`, Server Actions.
 
 ### FASE 5.7 — Performance & Caching (delegado) → `references/fase-57-performance-caching.md`
 **Delega a**: skill `vercel:next-cache-components` — PPR ya habilitado; `apps/web` SSG/ISR; `use cache`/`cacheTag`/`revalidateTag`; ningún RSC de web usa cookies.
+
+### FASE 5.8 — QA de flujos de negocio (delegado) → `references/fase-58-qa-standard.md`
+**Delega a**: skill `alyp-qa-standard` — carpeta `qa/`, catálogo con 1 flujo P0 real, CI `qa-e2e.yml`, sello.
+**Gate — no avances si falla**: spec P0 verde contra dev, prod `solo_lectura: true`, sello en CLAUDE.md + `standards.yaml`.
 
 ### FASE 6 — Primer commit y deploy → `references/fase-06-primer-deploy.md`
 **Objetivo**: build local verde antes de pushear; primer deploy READY.
@@ -117,4 +122,4 @@ Cada fase tiene su detalle completo en `references/fase-NN-<nombre>.md` — leer
 
 ## Checklist final → `references/checklist-final.md`
 
-Al terminar todas las fases, recorrer el checklist completo (común + condicionales por `USE_TURBOREPO` y `USE_MULTITENANCY` + skills pendientes: `alyp-observability` FASE 5.5, `vercel:vercel-firewall` FASE 5.6, `vercel:next-cache-components` FASE 5.7).
+Al terminar todas las fases, recorrer el checklist completo (común + condicionales por `USE_TURBOREPO` y `USE_MULTITENANCY` + skills pendientes: `alyp-observability` FASE 5.5, `vercel:vercel-firewall` FASE 5.6, `vercel:next-cache-components` FASE 5.7, `alyp-qa-standard` FASE 5.8).
