@@ -32,15 +32,16 @@ echo "== 3/3 la config ESLint agentic detecta console desnudo y catch vacío =="
 #    paquete como módulo cargable por nombre desde .eslintrc.cjs (falla con
 #    "Cannot find module '@typescript-eslint/parser'"); se instalan ambos
 #    localmente en el WORK dir, igual que con tsc arriba.
-# 3. La regla `no-console: ['warn', { allow: [] }]` del asset tiene un
-#    array `allow` vacío, que el schema de ESLint 8 rechaza (minItems: 1) —
-#    bug real de config del asset (ver reporte). Lo sobreescribimos aquí a
-#    'error' sin editar el asset, preservando la intención (prohibir todo
-#    console.*) para que el canario pueda ejercer la regla `no-empty` real
-#    del asset sin quedar bloqueado por un config inválido.
+# 3. Se sube `no-console` del 'warn' del asset a 'error' solo para el
+#    canario: con warnings ESLint sale con exit 0, y la detección de
+#    console desnudo debe reflejarse en el exit code por sí sola (sin
+#    depender de que `no-empty` también dispare). No se edita el asset.
 ( cd "$WORK/proj" \
-  && npm install --no-save --silent eslint@8 @typescript-eslint/parser@6 \
-  && cat > .eslintrc.cjs <<EOF
+  && npm install --no-save --silent eslint@8 @typescript-eslint/parser@6
+  # El heredoc va en su propia sentencia: encadenar `&& cat <<EOF ... EOF && …`
+  # en una línea continuada es un error de sintaxis en bash (3.2 y 5.3).
+  # `set -e` (heredado por el subshell) corta si el install o el cat fallan.
+  cat > .eslintrc.cjs <<EOF
 const base = require('$REPO_DIR/skills/agentic-logging/assets/.eslintrc.agentic.cjs');
 module.exports = {
   ...base,
@@ -49,7 +50,7 @@ module.exports = {
   rules: { ...base.rules, 'no-console': 'error' },
 };
 EOF
-  && npx eslint --no-eslintrc -c .eslintrc.cjs src/quiebra.ts \
+  npx eslint --no-eslintrc -c .eslintrc.cjs src/quiebra.ts \
   && { echo "✗ el lint DEBIÓ fallar sobre quiebra.ts"; exit 1; } \
   || echo "✓ eslint agentic marca las violaciones esperadas" )
 
