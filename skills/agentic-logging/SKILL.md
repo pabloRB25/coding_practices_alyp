@@ -82,6 +82,9 @@ Let `SKILL_DIR=~/.claude/skills/agentic-logging` and `UTILS_DIR` be the project'
    filling the per-project values: `SERVICE_NAME`, `APP_SOURCE_DIRS`, `LOG_PROVIDER` (+ provider creds).
 9. For local dev, pipe stdout to a file:
    `next dev | tee logs/dev.log` — add `logs/` to `.gitignore`.
+9b. Stamp the standard seal and manifest: append `<!-- logging-standard: v1 -->` to the
+   project's `CLAUDE.md`, and add `logging-standard: v1` under `estandares:` in the
+   repo's `standards.yaml` (create it from `contracts/standards.example.yaml` if missing).
 10. **Verify** (see below).
 
 ## Steps (mode: audit — existing project)
@@ -145,6 +148,7 @@ npm run agent:gps tr_12345
 - `node scripts/agent-gps.mjs <traceId>` prints the navigation block and the
   `<<<AGENT_GPS_JSON>>>` object with `archivo`/`linea`.
 - ESLint fails on a naked `console.*` and on an empty `catch`.
+- `grep "logging-standard: v1" CLAUDE.md` and the repo's `standards.yaml` both confirm the seal.
 
 ## Per-project variables (only these change)
 

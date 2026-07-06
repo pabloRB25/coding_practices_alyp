@@ -1,0 +1,10 @@
+# standards.yaml — manifiesto de estándares Alyp adoptados por este repo.
+# La auditoría lee este archivo y corre el modo audit de cada skill en orden de dependencias.
+ecosistema: 2.0.0
+perfil: next-supabase-vercel   # único perfil implementado hoy
+estandares:
+  code-standard: v1            # sello en CLAUDE.md: agentic-standard: v1
+  logging-standard: v1
+  qa-standard: v1
+  observability: v1
+excepciones: []                # ej: "- qa-standard: sin flujos P2 (app interna sin nocturno)"
