@@ -19,6 +19,10 @@ Aplica el estándar de código "agentic-ready" en proyectos Alyp Studio.
 Optimiza el ciclo del agente: **LEER → ENTENDER → CAMBIAR → VERIFICAR**.
 
 **Versión del estándar**: `agentic-standard: v1`
+
+**Contrato**: este skill es el perfil **next·supabase·vercel** del contrato
+`contracts/code-standard.md` (invariantes I1–I9). Ante conflicto, el contrato manda.
+
 **Principio**: lo que abarata cada paso del ciclo sube la tasa de éxito y baja el consumo de tokens.
 
 | Paso | Qué lo abarata |
