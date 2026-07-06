@@ -1,0 +1,5 @@
+- name: Verify
+  run: pnpm turbo run verify
+
+- name: Test
+  run: pnpm turbo run test

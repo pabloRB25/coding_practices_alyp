@@ -1,121 +1,154 @@
-# Instalación de Skills en Claude Code
+# Instalación
 
-Los skills son archivos `.md` que Claude Code carga al invocarlos con `/nombre-del-skill`. Se instalan copiando el archivo a `~/.claude/commands/`.
+Este repo distribuye su ecosistema (skills + agentes) de tres formas. Elegí según
+quién sos: un equipo que **consume** el estándar (vías 1 y 2), o alguien que
+**desarrolla** el ecosistema mismo (vía 2 con `--link`, o vía 3 puntual).
 
 ---
 
-## Instalación
+## Vía 1 — Plugin de Claude Code (recomendada para equipos)
 
-### Opción A: Manual (recomendado para control total)
+La forma más simple de adoptar el ecosistema completo en Claude Code, sin clonar
+el repo a mano.
+
+```
+/plugin marketplace add alyp-studio/coding_practices_alyp
+/plugin install alyp-dev-standards@alyp-studio
+```
+
+Esto registra el marketplace `alyp-studio` (`.claude-plugin/marketplace.json`) e
+instala el plugin `alyp-dev-standards` (`.claude-plugin/plugin.json`), que empaqueta
+los 7 skills y los 4 agentes del ecosistema. Es la vía recomendada por defecto:
+no requiere `git clone` ni gestionar rutas, y las actualizaciones futuras del
+plugin llegan por el mismo mecanismo de `/plugin`.
+
+---
+
+## Vía 2 — Script de instalación
+
+Para quienes prefieren clonar el repo (o ya lo tienen clonado como referencia)
+y quieren un instalador explícito.
 
 ```bash
-# Clonar este repo
 git clone https://github.com/alyp-studio/coding_practices_alyp.git
 cd coding_practices_alyp
-
-# Copiar todos los skills a Claude Code
-cp skills/alyp-new-project.md ~/.claude/commands/
-cp skills/alyp-observability.md ~/.claude/commands/
-cp skills/alyp-agentic-standards.md ~/.claude/commands/
-cp skills/agentic-logging.md ~/.claude/commands/
-
-echo "✓ Skills instalados"
+./scripts/install.sh
 ```
 
-### Opción B: Script de instalación
+`scripts/install.sh` soporta:
+
+| Flag | Default | Qué hace |
+|---|---|---|
+| `--copy` | sí (default) | Copia `skills/` y `agents/` a destino. Para equipos externos: cada máquina tiene su propia copia, independiente de este repo. |
+| `--link` | no | Crea symlinks al repo en vez de copiar. Pensado para quien **desarrolla el ecosistema**: cero drift entre el repo y lo instalado — cualquier edición en `skills/` se refleja al instante. |
+| `--target DIR` | `~/.claude` | Cambia el destino de la instalación (por defecto instala en `~/.claude/skills/` y `~/.claude/agents/`). |
+
+Ejemplo para desarrollo del propio ecosistema:
 
 ```bash
-# Desde la raíz del repo:
-for skill in skills/*.md; do
-  cp "$skill" ~/.claude/commands/
-  echo "✓ Instalado: $(basename $skill)"
-done
+./scripts/install.sh --link
 ```
 
-### Verificar instalación
+El script instala los 7 skills completos (`alyp-new-project`, `alyp-agentic-standards`,
+`agentic-logging`, `alyp-observability`, `alyp-qa-standard`, `devstral-orchestration`,
+`alyp-maestro`) y los 4 agentes (`consultor`, `explorador`, `implementador`, `revisor`).
 
-En Claude Code, los skills aparecen en la lista de comandos disponibles. Para confirmar:
+---
+
+## Vía 3 — Manual
+
+Para instalar un subconjunto puntual, o en un entorno donde no se puede correr
+el script.
+
+**Importante**: copiá el directorio **completo** de cada skill, nunca solo el
+`SKILL.md`. Los assets, referencias y templates (`assets/`, `references/`,
+`templates/`) son parte del skill — un `SKILL.md` suelto, sin sus archivos
+acompañantes, produce un skill roto o incompleto.
 
 ```bash
-ls ~/.claude/commands/
-# Debe mostrar:
-# agentic-logging.md
-# alyp-agentic-standards.md
-# alyp-new-project.md
-# alyp-observability.md
+# Ejemplo: instalar solo el estándar de logging
+cp -R skills/agentic-logging ~/.claude/skills/agentic-logging
+
+# Ejemplo: instalar el ecosistema completo a mano
+mkdir -p ~/.claude/skills ~/.claude/agents
+cp -R skills/alyp-new-project        ~/.claude/skills/
+cp -R skills/alyp-agentic-standards  ~/.claude/skills/
+cp -R skills/agentic-logging         ~/.claude/skills/
+cp -R skills/alyp-observability      ~/.claude/skills/
+cp -R skills/alyp-qa-standard        ~/.claude/skills/
+cp -R skills/devstral-orchestration  ~/.claude/skills/
+cp -R skills/alyp-maestro            ~/.claude/skills/
+cp    agents/*.md                    ~/.claude/agents/
 ```
 
 ---
 
-## Uso de cada skill
+## Post-instalación
 
-### Crear proyecto nuevo
-```
-/alyp-new-project
-```
-El skill hace preguntas sobre el proyecto (nombre, cliente, arquitectura) y ejecuta las 16 fases en orden.
+### `capacity.yaml` (requerido por el skill de orquestación)
 
-### Agregar estándares agentic-ready a proyecto existente
-```
-/alyp-agentic-standards
-```
-Seleccionar modo `audit` para integrar sin romper lo que hay.
+`devstral-orchestration` necesita un archivo de capacidad del entorno en
+`~/.claude/capacity.yaml`. El instalador (vía 2) lo crea automáticamente desde
+`skills/devstral-orchestration/capacity.example.yaml` si no existe. En instalación
+manual (vía 3) o si el skill se instaló solo, copialo y editalo a mano:
 
-### Instalar observabilidad completa
+```bash
+cp skills/devstral-orchestration/capacity.example.yaml ~/.claude/capacity.yaml
 ```
-/alyp-observability
-```
-Reemplaza los stubs de logger con la implementación completa y configura el transporte.
 
-### Instalar logging GPS en cualquier proyecto Node/TS
-```
-/agentic-logging
-```
-No requiere el stack Alyp — funciona en cualquier proyecto Node/TypeScript.
+Editá `~/.claude/capacity.yaml` con el mapeo tier→modelo y los límites reales de
+tu máquina/equipo (ver comentarios del archivo). El protocolo (`contracts/orchestration.md`)
+es agnóstico de modelos concretos; este archivo es lo que lo hace concreto en tu entorno.
+
+### Qué es opcional
+
+- **Ejecutor local (Ollama) y hooks de QA automático**: `devstral-orchestration`
+  funciona sin ellos. Si tu entorno no tiene ejecutor local, declarás
+  `local.disponible: false` en `capacity.yaml` y el protocolo degrada: las tareas
+  mecánicas se enrutan al tier barato (cloud) en vez de al ejecutor local. Si no
+  tenés hooks de QA instalados, el veredicto de evidencia lo pide quien delega —
+  no es un error del trabajo, es un modo de operación previsto.
+- **`alyp-maestro`**: es el skill de curaduría de conocimiento local por proyecto.
+  No es requisito de ningún otro skill del ecosistema; se adopta cuando el equipo
+  quiere que Claude destile aprendizajes en skills locales versionadas del repo
+  cliente.
 
 ---
 
-## Actualizar skills
+## Actualización
 
-Cuando este repo tenga una nueva versión:
+**Vía plugin**: re-correr `/plugin install alyp-dev-standards@alyp-studio` (o el
+mecanismo de actualización de plugins de Claude Code) trae la versión más nueva.
+
+**Vía script/manual, modo `--copy`**:
 
 ```bash
 cd coding_practices_alyp
 git pull
-
-# Re-instalar skills actualizados
-cp skills/*.md ~/.claude/commands/
+./scripts/install.sh          # re-copia skills y agentes actualizados
 ```
 
-Para actualizar proyectos existentes al nuevo estándar:
+**Vía script, modo `--link`**: no hace falta re-instalar — los symlinks apuntan
+al repo, así que un `git pull` ya deja lo instalado al día.
+
+**Verificar que no hay drift** entre lo que hay en el repo y lo instalado
+(útil sobre todo en modo `--copy`, donde es fácil olvidarse de re-instalar):
+
 ```bash
-# En el directorio del proyecto:
-/alyp-agentic-standards
-# → seleccionar modo: audit
+./scripts/check-drift.sh
+# → sin salida = todo al día
+# → "FALTA: <skill>" = un skill del repo no está instalado
+# → "DRIFT: <skill> difiere..." = la copia instalada quedó desactualizada
 ```
 
----
-
-## Estructura del directorio de Claude Code
-
-```
-~/.claude/
-├── commands/          ← aquí van los skills (.md)
-│   ├── alyp-new-project.md
-│   ├── alyp-observability.md
-│   ├── alyp-agentic-standards.md
-│   └── agentic-logging.md
-├── projects/
-│   └── -Users-parb/
-│       └── memory/   ← memoria persistente del agente
-└── settings.json      ← configuración de Claude Code
-```
+`check-drift.sh` ignora los skills instalados como symlink (modo `--link`), porque
+esos nunca pueden tener drift.
 
 ---
 
 ## Prerequisitos del sistema
 
-Antes de ejecutar `/alyp-new-project`, verificar:
+Antes de invocar `alyp-new-project` (el orquestador de scaffolding), verificar:
 
 | Herramienta | Versión mínima | Para qué |
 |-------------|----------------|---------|
@@ -127,6 +160,7 @@ Antes de ejecutar `/alyp-new-project`, verificar:
 | `git` | cualquiera | Control de versiones |
 
 Verificar autenticación:
+
 ```bash
 gh auth status        # debe mostrar cuenta activa
 vercel whoami         # debe mostrar tu cuenta de Vercel

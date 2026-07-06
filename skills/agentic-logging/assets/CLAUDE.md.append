@@ -1,0 +1,41 @@
+## Logging y debugging (protocolo autónomo)
+
+Este proyecto usa el **Agentic-First Logging Standard**. Los errores son JSON
+con la ubicación exacta en el código. NO adivines ni explores a ciegas.
+
+### Reglas para escribir código
+1. Todo error → `agenticLogger.error(ctx, error)` desde `utils/logger.ts`.
+   Nunca `console.log/console.error`, nunca `catch {}` vacío.
+2. `ctx` siempre incluye `traceId` y `contexto` (operación de negocio).
+   Usar `crearLoggerDeRuta(nuevoTraceId(), 'dominio:operacion', { meta })`.
+3. Asignar `codigo` UPPER_SNAKE de `utils/error-codes.ts`.
+   Para errores Supabase: `mapearCodigoPostgres((err as any).code)`.
+
+### Cuando hay un error o un traceId que diagnosticar
+1. Ejecutar: `npm run agent:gps <TRACE_ID>`
+2. Leer el bloque `<<<AGENT_GPS_JSON>>>`: trae `archivo`, `linea`, `funcion`,
+   `codigo`, `mensaje` y `contexto`.
+3. Abrir **solo** ese `archivo` en esa `linea`, analizar y aplicar el fix.
+
+### Fuentes de logs (env LOG_PROVIDER)
+- `local` (dev): lee `logs/dev.log`. Correr con: `next dev | tee logs/dev.log`
+- `axiom` / `http` (prod): requiere `LOG_PROVIDER_API_URL` + `LOG_PROVIDER_TOKEN`
+
+### Casos especiales de debugging
+
+**RLS silencioso (0 filas sin error)**:
+- Síntoma: query sin error pero datos vacíos inesperadamente
+- No hay `traceId` porque no lanzó excepción
+- Buscar en logs el warning `query retornó vacío — verificar RLS policy`
+- Ir a Supabase Studio → SQL Editor y ejecutar la query con el JWT del usuario afectado
+- Verificar `pg_policies` para la tabla y `memberships` para el usuario
+
+**Edge Runtime crashes**:
+- Si el error ocurre en middleware (`middleware.ts`), el stack puede apuntar al edge runtime
+- El `agenticLogger` con honeypot usa APIs de Node — no instalar en `middleware.ts`
+- En middleware: usar solo `console.error` como último recurso o estructurar manualmente
+
+### Nota de producción
+`ubicacion_exacta` solo apunta a tu código si los **source maps del servidor**
+están habilitados en el deploy. Activarlos en `next.config.ts`:
+`serverExternalPackages` + `productionBrowserSourceMaps: true`.

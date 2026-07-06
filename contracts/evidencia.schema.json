@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/alyp-studio/coding_practices_alyp/contracts/evidencia.schema.json",
+  "title": "Sobre único de evidencia — contrato v1",
+  "description": "Toda evidencia reproducible (test, comando, browser, corrida e2e) se reporta en este envelope. Es lo que el revisor/juez consume para dar veredicto. Para evidencia tipo 'e2e', el veredicto.json completo de qa-standard (schema en skills/alyp-qa-standard/templates/veredicto.schema.json) se transporta sin modificar dentro de 'detalle' — ese schema es estructuralmente distinto (array de flujos, no un veredicto único) y no es una instancia de este envelope.",
+  "type": "object",
+  "required": ["tipo", "veredicto", "comando", "timestamp"],
+  "properties": {
+    "tipo": { "enum": ["test", "comando", "browser", "e2e"] },
+    "veredicto": { "enum": ["pass", "fail", "no-evaluable"] },
+    "comando": { "type": "string", "description": "comando exacto que reproduce la evidencia" },
+    "resultado": { "type": "string", "description": "salida relevante (recortada), no el dump completo" },
+    "artefactos": { "type": "array", "items": { "type": "string" }, "description": "rutas a screenshots/traces/reportes" },
+    "traceId": { "type": "string", "description": "trace de la corrida cuando aplica (oráculo de logs)" },
+    "ambiente": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "detalle": { "type": "object", "description": "extensión por tipo — p. ej. el veredicto.json completo de una corrida e2e (schema propio en skills/alyp-qa-standard/templates/veredicto.schema.json), transportado tal cual sin remapear campos" }
+  }
+}

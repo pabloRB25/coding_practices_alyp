@@ -1,9 +1,17 @@
 # Ecosistema de Skills — Arquitectura y Relaciones
 
-## Diagrama de flujo
+Este documento cubre los 7 skills del ecosistema, cómo se delegan entre sí, y el
+ciclo operativo completo (planificar → implementar → verificar → probar →
+observar → curar) que atraviesan. Para instalación ver
+[`installation.md`](./installation.md); para qué adopta un equipo y en qué
+orden ver [`adopcion-equipos.md`](./adopcion-equipos.md).
+
+---
+
+## Diagrama de flujo — creación de un proyecto nuevo
 
 ```
-Usuario invoca /alyp-new-project
+Usuario invoca alyp-new-project
         │
         ▼
 FASE 0-3A: Scaffold base
@@ -48,17 +56,16 @@ FASE 5 ─────────────────────► vercel
                                   staging → STAGING
                                   main    → PROD
                                 - SSO desactivado para previews
-                                - Log Drain configurado (FASE 5.6)
         │
         ▼
 FASE 5.5 ───────────────────► alyp-observability
-  Delega                        - Reemplaza stubs con implementación completa
+  Delega                        - agentic-logging (implementación completa)
                                 - utils/logger.ts (honeypot, PII scrub, niveles)
                                 - utils/error-codes.ts (UPPER_SNAKE + mapeo PG)
                                 - scripts/agent-gps.mjs (local|axiom|http)
                                 - instrumentation.ts OTel completo
                                 - Web Vitals → /api/vitals
-                                - CLAUDE.md.append (protocolo debugging)
+                                - Log Drain configurado
         │
         ▼
 FASE 5.6 ───────────────────► vercel:vercel-firewall
@@ -70,6 +77,12 @@ FASE 5.7 ───────────────────► vercel:nex
                                 - Estrategia ISR para apps/web
         │
         ▼
+FASE 5.8 ───────────────────► alyp-qa-standard
+  Delega                        - Scaffold de qa/ (catálogo YAML de flujos)
+                                - Playwright E2E con oráculos UI+DB+logs
+                                - Smoke agéntico post-deploy
+        │
+        ▼
 FASE 6-8: Commit + Deploy + Docs + Auto-Context
   - Primer deploy READY
   - /api/health retorna ok
@@ -78,28 +91,86 @@ FASE 6-8: Commit + Deploy + Docs + Auto-Context
   - CONTEXT_BOT_TOKEN configurado
 ```
 
+**Transversales, no ligados a una fase**: `devstral-orchestration` (decide QUIÉN
+ejecuta cada paso — qué tier de modelo, local vs. cloud) y `alyp-maestro`
+(curaduría de conocimiento, se invoca al cerrar una feature o tarea, no durante
+el scaffold inicial).
+
 ---
 
-## Relación entre skills
+## Los 7 skills y su cadena de delegación
 
-### `alyp-new-project` es el orquestador, no implementa
+### `alyp-new-project` — orquestador, no implementa
 
-El orquestador conoce el **orden** y el **contexto** que necesita cada skill especializado. Nunca duplica lógica que ya existe en los skills delegados.
+Conoce el **orden** y el **contexto** que necesita cada skill especializado.
+Nunca duplica lógica que ya existe en los skills delegados. Su `requires:`
+declara la dependencia explícita: `[alyp-agentic-standards, alyp-observability,
+alyp-qa-standard]`.
 
-### `alyp-observability` tiene dos responsabilidades claras
+Delegación por fase:
+- **F3.5 → `alyp-agentic-standards`**: arquitectura por features y gate de verificación.
+- **F4 → `supabase:supabase`** (+ `supabase:supabase-postgres-best-practices`): infra de datos.
+- **F5, F5.6, F5.7 → `vercel:*`** (`bootstrap`, `vercel-firewall`, `next-cache-components`): infra de despliegue, rate limiting, cache.
+- **F5.5 → `alyp-observability`**, que a su vez invoca `agentic-logging` para la implementación de logging (ver abajo).
+- **F5.8 → `alyp-qa-standard`**: la última pieza antes de cerrar el scaffold — necesita que exista código con logging (F5.5) y arquitectura (F3.5) para tener algo que probar.
 
-1. **Stubs → implementación**: El scaffold base crea stubs tipados de `logger.ts` y `error-codes.ts` para que el código compile desde el día 1. `alyp-observability` los reemplaza con la implementación completa (honeypot, PII scrub, etc.).
+### `alyp-agentic-standards` — código legible por agentes
 
-2. **Plataforma**: Configura el transporte de logs (Log Drain) y el OTel backend. El código de la app nunca cambia al cambiar de backend.
+Implementa el contrato `code-standard`. `requires: [agentic-logging]` — el
+gate `pnpm verify` y el invariante I8 (errores estructurados) dependen de que
+exista el `traceid-contract`. Dos modos: `bootstrap` (proyecto nuevo) y `audit`
+(proyecto existente, integra sin romper).
 
-### `alyp-agentic-standards` tiene dos artefactos principales
+Dos artefactos en el propio skill: la **implementación** (lo que instala:
+feature architecture, generador, Vitest, ESLint) y la **referencia** (la guía
+completa de "agentic-ready" al final del archivo — no se copia a los
+proyectos, vive una sola vez en el skill).
 
-1. **Implementación** (lo que instala): feature architecture, verify script, generador, Vitest, ESLint
-2. **Referencia** (al final del archivo): la guía completa de "agentic-ready" — no se copia a los proyectos, vive una sola vez en el skill
+### `agentic-logging` — logging GPS, standalone y base de todo
 
-### `agentic-logging` es standalone
+`provides: [logging-standard, traceid-contract]`, sin `requires:` propios — es
+la base de la cadena. Puede usarse independientemente de los demás skills para
+cualquier proyecto Node/TS que quiera logging GPS, sin asumir Turborepo ni
+Supabase. `alyp-agentic-standards`, `alyp-observability` y `alyp-qa-standard`
+dependen (directa o transitivamente) de él.
 
-Puede usarse independientemente de los demás skills para cualquier proyecto Node/TS que quiera logging GPS. No asume Turborepo ni Supabase.
+### `alyp-observability` — logging GPS completo + OTel + Log Drains
+
+`requires: [agentic-logging]`. Dos responsabilidades:
+1. **Stubs → implementación**: el scaffold base (F3A) crea stubs tipados de
+   `logger.ts` y `error-codes.ts` para que el código compile desde el día 1;
+   `alyp-observability` los reemplaza con la implementación completa
+   (honeypot, PII scrub, etc.) delegando en `agentic-logging`.
+2. **Plataforma**: configura el transporte (Log Drain) y el backend OTel. El
+   código de la app nunca cambia al cambiar de backend.
+
+### `alyp-qa-standard` — consumidor del `traceid-contract`
+
+`requires: [traceid-contract]`, `provides: [qa-standard]`. Es el consumidor
+final de la cadena logging: su tercer oráculo (de tres: UI + persistencia +
+logs) verifica "cero entradas `nivel: error` para el `traceId` de la corrida" —
+una aserción mecánica que solo es posible porque `agentic-logging` ya garantiza
+que todo error comparte un `traceId` consultable. Sin logging estructurado en
+pie, el oráculo de logs de QA no tiene nada que auditar.
+
+### `devstral-orchestration` — transversal, decide quién ejecuta
+
+No participa de la cadena de fases del scaffold: es el protocolo que decide,
+en cualquier punto del ciclo (planificar, implementar, revisar), qué tier de
+modelo ejecuta cada bloque de trabajo — desde el orquestador (juez) hasta el
+ejecutor local mecánico. `provides: [orchestration]`, sin `requires:` — es
+agnóstico del resto del ecosistema y aplica a cualquier tarea, no solo a
+scaffolding de proyectos SaaS.
+
+### `alyp-maestro` — cierra el ciclo
+
+`provides: [curaduria]`, sin `requires:`. Se invoca al cerrar una feature o
+tarea (no durante el scaffold inicial): destila lo aprendido — metodologías,
+pitfalls, decisiones durables — en skills locales versionadas dentro del repo
+cliente (`.claude/skills/<nombre>/SKILL.md`), que Claude auto-carga en futuras
+sesiones de ese proyecto puntual. Complementa a engram (recall de hechos) sin
+duplicarlo. Incluye la skill fija `planificar`, que es el punto de entrada del
+ciclo operativo (siguiente sección).
 
 ---
 
@@ -114,16 +185,74 @@ FASE 3A (scaffold base)
     ↓ pnpm new-feature genera features que compilan
     ↓ pnpm verify pasa
 
-FASE 5.5 (alyp-observability)
+FASE 5.5 (alyp-observability, vía agentic-logging)
   Sobreescribe: utils/logger.ts        ← implementación completa con honeypot
   Sobreescribe: utils/error-codes.ts   ← con mapearCodigoPostgres completo
 ```
 
-Este patrón resuelve el problema de "el generador de features usa símbolos de observabilidad antes de que observabilidad se instale". El stub garantiza que el código compile en cualquier orden de ejecución.
+Este patrón resuelve el problema de "el generador de features usa símbolos de
+observabilidad antes de que observabilidad se instale". El stub garantiza que
+el código compile en cualquier orden de ejecución.
 
 ---
 
-## Variables de sesión que fluyen entre fases
+## Ciclo operativo
+
+Una vez que el ecosistema está instalado y un proyecto arrancado, el trabajo
+del día a día recorre un ciclo de 6 pasos que vuelve sobre sí mismo:
+
+```
+   ┌─────────────► planificar
+   │              (alyp-maestro: skill "planificar" — descompone la tarea)
+   │                      │
+   │                      ▼
+  curar                implementar
+(alyp-maestro:      (alyp-new-project para scaffold nuevo;
+ destila lo           alyp-agentic-standards para features
+ aprendido en          en proyecto existente, modo audit)
+ skills locales)              │
+   │                      ▼
+   │                  verificar
+   │              (gate único: pnpm verify — I2/I3 de code-standard;
+   │               evidencia = contracts/evidencia.schema.json)
+   │                      │
+   │                      ▼
+   │                   probar
+   │              (alyp-qa-standard: 3 oráculos — UI + DB + logs;
+   │               veredicto.json por corrida)
+   │                      │
+   │                      ▼
+   └──────────────── observar
+              (agent-gps / traceId: cuando algo falla en runtime,
+               agentic-logging + alyp-observability dan la ubicación
+               exacta — archivo + línea — sin leer el código fuente)
+```
+
+- **Planificar**: `alyp-maestro` incluye la skill fija `planificar`, punto de
+  entrada del ciclo — descompone la tarea antes de tocar código.
+- **Implementar**: scaffold completo vía `alyp-new-project` (proyecto nuevo) o
+  incremental vía `alyp-agentic-standards` en modo `audit` (proyecto existente).
+- **Verificar**: el gate único (`pnpm verify`) es el invariante I2 de
+  `code-standard` — un comando, espejado en CI, que debe pasar limpio antes de
+  considerar algo terminado (I3: done = gate + evidencia).
+- **Probar**: `alyp-qa-standard` ejercita los flujos de negocio del catálogo con
+  sus tres oráculos; el oráculo de logs es el punto donde `qa-standard` consume
+  el `traceid-contract` de `agentic-logging`.
+- **Observar**: cuando algo falla — en dev o en producción — `agent-gps`
+  (instalado por `alyp-observability`) traduce un `traceId` a archivo+línea
+  exactos, sin que el agente tenga que leer el código para ubicar el error.
+- **Curar**: al cerrar la feature o tarea, `alyp-maestro` destila lo aprendido
+  (metodologías, pitfalls, decisiones) en skills locales del repo cliente, que
+  se auto-cargan en la próxima sesión — y el ciclo vuelve a **planificar** con
+  ese conocimiento ya disponible.
+
+`devstral-orchestration` es transversal a los 6 pasos: en cada uno, decide qué
+tier de modelo ejecuta el trabajo (orquestador, razonador, obrero, barato,
+mecánico, o QA automático), no es un paso aparte del ciclo.
+
+---
+
+## Variables de sesión que fluyen entre fases (scaffold de proyecto nuevo)
 
 El orquestador mantiene estas variables en memoria durante la ejecución:
 
@@ -172,4 +301,11 @@ grep "agentic-standard: v1" CLAUDE.md  # → debe encontrarlo
 
 # 8. Log Drain configurado
 # Vercel Dashboard → Integrations → verificar drain activo para staging y prod
+
+# 9. QA de flujos corre y produce veredicto
+# ver skills/alyp-qa-standard/ → catálogo YAML + veredicto.json por corrida
+
+# 10. Lint estructural del ecosistema (a nivel de este repo, no del proyecto cliente)
+node scripts/lint-skills.mjs
+# → ✓ lint-skills: 7 skills OK (N capacidades)
 ```

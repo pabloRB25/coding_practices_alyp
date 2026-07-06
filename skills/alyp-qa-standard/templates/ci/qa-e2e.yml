@@ -1,0 +1,49 @@
+# qa-standard: v1 — E2E de flujos de negocio (P0/P1) en CI
+# Adaptar: rama objetivo, cómo se obtiene QA_BASE_URL (preview de Vercel o dev fijo).
+name: QA E2E
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+
+concurrency:
+  group: qa-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10 # presupuesto duro (qa.config.yaml: presupuestos.e2e_ci_minutos)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install chromium --with-deps
+      - name: Seed del ambiente de pruebas
+        run: pnpm --filter qa seed
+        env:
+          QA_SUPABASE_URL: ${{ secrets.QA_SUPABASE_URL }}
+          QA_SUPABASE_SERVICE_ROLE: ${{ secrets.QA_SUPABASE_SERVICE_ROLE }}
+      - name: E2E P0+P1
+        run: pnpm --filter qa e2e
+        env:
+          QA_BASE_URL: ${{ secrets.QA_DEV_URL }} # o la URL del preview del PR
+          QA_CRITICIDAD: "P0|P1"
+          QA_SUPABASE_URL: ${{ secrets.QA_SUPABASE_URL }}
+          QA_SUPABASE_SERVICE_ROLE: ${{ secrets.QA_SUPABASE_SERVICE_ROLE }}
+          QA_PASSWORD_ADMIN: ${{ secrets.QA_PASSWORD_ADMIN }}
+          QA_PASSWORD_EMPLEADO: ${{ secrets.QA_PASSWORD_EMPLEADO }}
+      - name: Publicar evidencias
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-evidencias
+          path: qa/evidencias/
+          retention-days: 14

@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "test":    "vitest run",
+    "test:ui": "vitest --ui",
+    "test:watch": "vitest",
+    "verify":  "pnpm typecheck && pnpm lint && pnpm test"
+  }
+}

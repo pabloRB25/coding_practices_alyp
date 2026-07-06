@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "new-feature": "node scripts/new-feature.mjs"
+  }
+}

@@ -1,0 +1,16 @@
+name: canario-ecosistema
+on:
+  pull_request:
+    paths: ['skills/**', 'contracts/**', 'scripts/**', 'canary/**']
+  push:
+    branches: [develop, main]
+    paths: ['skills/**', 'contracts/**', 'scripts/**', 'canary/**']
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: ./scripts/canary.sh

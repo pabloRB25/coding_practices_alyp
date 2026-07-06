@@ -1,0 +1,15 @@
+{
+  "name": "qa",
+  "private": true,
+  "description": "qa-standard: v1 — pruebas de flujos de negocio (registrar `qa` en pnpm-workspace.yaml)",
+  "scripts": {
+    "seed": "psql \"$QA_SUPABASE_DB_URL\" -v ON_ERROR_STOP=1 -f seeds/reset.sql -f seeds/seed.sql",
+    "e2e": "playwright test --config e2e/playwright.config.ts",
+    "e2e:p0": "QA_CRITICIDAD=P0 playwright test --config e2e/playwright.config.ts"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.0",
+    "@playwright/test": "^1.50.0",
+    "@supabase/supabase-js": "^2.49.0"
+  }
+}

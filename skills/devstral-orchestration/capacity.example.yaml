@@ -1,0 +1,21 @@
+# capacity.yaml — perfil de capacidad del ENTORNO (máquina/equipo), no doctrina.
+# Instalar como ~/.claude/capacity.yaml y ajustar. El protocolo (SKILL.md) habla
+# de tiers; este archivo dice qué modelo y qué límites tiene CADA tier en TU entorno.
+version: 1
+tiers:
+  juez: claude-fable-5             # veredicto final, consultor
+  razonador: claude-opus-4-8       # seguridad crítica, arquitectura, juez adversarial
+  obrero: claude-sonnet-5          # implementación, research, review normal
+  barato: claude-haiku-4-5         # búsquedas amplias, triage de logs
+  mecanico_light: qwen2.5-coder:3b # local default (null si no hay ejecutor local)
+  mecanico_heavy: qwen3-coder:30b  # local con razonamiento (null si no aplica)
+local:
+  disponible: true                 # false → todo lo mecánico va a `barato` (cloud)
+  max_delegaciones_vivas: 2        # = OLLAMA_NUM_PARALLEL; gobernador anti-estampida
+  qa_hooks: true                   # hooks qa-review/supervise instalados
+cloud:
+  max_subagentes_por_ola: 10       # cap del harness en este entorno
+  max_razonador_por_ola: 3         # dosificación del tier caro/lento
+notas: >
+  Valores medidos del entorno (RAM, tiempos, co-residencia de modelos) van acá,
+  no en el protocolo. Referencia local: ~/local-llm-stack/ARCHITECTURE.md.

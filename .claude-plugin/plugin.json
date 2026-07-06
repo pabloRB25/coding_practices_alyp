@@ -1,0 +1,8 @@
+{
+  "name": "alyp-dev-standards",
+  "version": "2.0.0",
+  "description": "Ecosistema de desarrollo Alyp Studio: creación de proyectos SaaS, estándar de código agentic-ready, logging GPS, observabilidad, QA de flujos de negocio, orquestación multi-modelo y curaduría de conocimiento. Contratos agnósticos + perfil next·supabase·vercel.",
+  "author": { "name": "Alyp Studio", "email": "pr@pablorodriguezb.com" },
+  "homepage": "https://github.com/alyp-studio/coding_practices_alyp",
+  "keywords": ["saas", "agentic", "standards", "qa", "logging", "orchestration"]
+}

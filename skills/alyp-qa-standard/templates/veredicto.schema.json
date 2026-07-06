@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Veredicto de corrida — qa-standard v1",
+  "type": "object",
+  "required": ["qa_standard", "run_id", "ambiente", "ejecutor", "flujos", "resumen"],
+  "properties": {
+    "qa_standard": { "const": "v1" },
+    "run_id": { "type": "string", "description": "<fecha>_<ambiente>_<commit-corto>" },
+    "ambiente": { "enum": ["dev", "preview", "staging", "prod"] },
+    "commit": { "type": "string" },
+    "ejecutor": { "enum": ["playwright", "agente-claude", "crewai-flow"] },
+    "flujos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "veredicto", "oraculos"],
+        "properties": {
+          "id": { "type": "string" },
+          "veredicto": { "enum": ["PASS", "FAIL", "BLOCKED"] },
+          "oraculos": {
+            "type": "object",
+            "required": ["ui", "db", "logs"],
+            "properties": {
+              "ui": { "enum": ["PASS", "FAIL", "N/A"] },
+              "db": { "enum": ["PASS", "FAIL", "N/A"] },
+              "logs": { "enum": ["PASS", "FAIL", "N/A"] }
+            }
+          },
+          "evidencia": { "type": "array", "items": { "type": "string" } },
+          "diagnostico": { "type": "string", "description": "solo si FAIL: hipótesis + archivo:línea si se conoce" }
+        }
+      }
+    },
+    "resumen": {
+      "type": "object",
+      "required": ["total", "pass", "fail"],
+      "properties": {
+        "total": { "type": "integer" },
+        "pass": { "type": "integer" },
+        "fail": { "type": "integer" },
+        "blocked": { "type": "integer" }
+      }
+    }
+  }
+}
