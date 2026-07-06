@@ -12,6 +12,11 @@ Estándar portable de pruebas automatizadas sobre flujos de negocio. Complementa
 `alyp-agentic-standards` (código) y `agentic-logging` (logs): cierra el ciclo
 LEER → ENTENDER → CAMBIAR → **VERIFICAR** con evidencia reproducible.
 
+**Contrato**: perfil next·supabase·vercel de `contracts/qa-standard.md` (P1–P6).
+El `veredicto.json` se transporta en el sobre `contracts/evidencia.schema.json`
+(dentro de `detalle`, tipo `e2e`) — su schema propio (`templates/veredicto.schema.json`,
+array de flujos) es estructuralmente distinto al sobre y no es una instancia directa.
+
 ## Principios (los 6, no negociables)
 
 1. **El catálogo de flujos (`qa/flujos/*.yaml`) es la única fuente de verdad.**
