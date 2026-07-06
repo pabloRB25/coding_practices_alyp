@@ -1,6 +1,7 @@
 ---
 name: devstral-orchestration
 version: 2.5.0
+provides: [orchestration]
 description: >
   Protocolo de orquestación multi-modelo v2.5 de Claude Code para Alyp Studio — dual Fable/Opus. El orquestador (Fable u Opus, auto-detectado) rutea entre 6 roles: orquestador, consultor Fable (escalación por duda del modo Opus, veredicto ⬆ FABLE), subagentes Opus (razonamiento pesado), subagentes Sonnet (implementador/explorador/revisor), ejecutor local en dos tiers (qwen2.5-coder:3b light / qwen3-coder:30b heavy) vía delegate_to_devstral, y QA qwen2.5-coder:3b. Invocar ANTES de orquestar o delegar por primera vez en la sesión, o para interpretar veredictos del hook (✅/⚠/❌/🚨). Versiones anteriores en versions/.
 ---

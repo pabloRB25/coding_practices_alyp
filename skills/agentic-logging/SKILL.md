@@ -1,6 +1,7 @@
 ---
 name: agentic-logging
 version: 1.1.0
+provides: [logging-standard, traceid-contract]
 description: >
   Install or audit the "Agentic-First Logging Standard" in any Node/TypeScript
   project (Next.js, Express, workers). Turns errors into structured JSON logs

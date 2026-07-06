@@ -1,6 +1,8 @@
 ---
 name: alyp-observability
 version: 1.1.0
+provides: [observability]
+requires: [agentic-logging]
 description: >
   Alyp Studio — Observabilidad y Logs. Instala o audita la capa de observabilidad
   estándar en proyectos SaaS enterprise: logging agéntico (delegado al skill
@@ -124,7 +126,7 @@ Si `OTEL_EXPORTER_OTLP_ENDPOINT` no está configurada, OTel corre en modo no-op 
 
 ## FASE 5 — Variables de entorno OTel por ambiente
 
-Las claves base del logger/extractor las instala `agentic-logging` (su `assets/env.example`).
+Las claves base del logger/extractor las instala `agentic-logging` (ver `env.example` en los assets de ese skill).
 Aquí solo se configuran los exporters por ambiente:
 
 ```bash
