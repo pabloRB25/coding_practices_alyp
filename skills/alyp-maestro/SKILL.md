@@ -108,6 +108,24 @@ Disparador: terminaste una feature/tarea (o el usuario pide curar). Procedimient
 6. **Reportá** qué skills creaste/extendiste/borraste y por qué (anclado en
    evidencia). Ese informe es output, no una puerta que bloquee.
 
+## Acción: `promover` (local → global)
+
+Disparador: al curar, detectás que una skill local (pitfall/metodología/decisión)
+ya existe —en esencia— en **2 o más repos** de clientes distintos, o contradice
+algo del estándar global. Procedimiento:
+
+1. **Verificá la recurrencia con evidencia**: citá las skills locales equivalentes
+   (repo + ruta) o las observaciones de engram que la respaldan. Una sola aparición
+   no se promueve.
+2. **Redactá la propuesta como cambio concreto** al repo de estándares
+   (`alyp-studio/coding_practices_alyp`): a qué contrato o skill pertenece, el diff
+   propuesto, y el bump de `version:` que corresponde.
+3. **Abrí un PR a `develop`** de ese repo con la propuesta (o dejá el paquete listo
+   y avisá, si no tenés el repo a mano). El veredicto de incorporarla es del
+   orquestador/usuario, no tuyo.
+4. La skill local NO se borra al promover: se le anota `promovida: <PR>` y se
+   elimina recién cuando la versión nueva del estándar esté instalada en ese repo.
+
 ## Reglas comunes
 
 - **Autónomo, no interactivo.** Puede correr al cierre de una tarea o dentro de un
