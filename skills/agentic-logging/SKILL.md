@@ -118,6 +118,9 @@ npm run agent:gps tr_12345
 
 ## Log schema (error contract)
 
+This schema is frozen as contract v1 — see `contracts/logging-standard.md`
+(Spanish keys are an Alyp standard decision; changing any key is a major version).
+
 ```jsonc
 {
   "nivel": "error",
