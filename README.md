@@ -59,7 +59,7 @@ heredan sin negociar.
 |---|---|---|---|
 | `alyp-new-project` | Orquestador — crea un proyecto SaaS desde cero (16 fases), delega a los demás skills en orden | — (orquesta, no implementa un contrato propio) | 1.1.0 |
 | `alyp-agentic-standards` | Arquitectura por features, gate `pnpm verify`, generador `new-feature` | `code-standard` | 1.1.0 |
-| `agentic-logging` | Logging GPS estructurado (`agenticLogger`), standalone para cualquier Node/TS | `logging-standard`, `traceid-contract` | 1.1.0 |
+| `agentic-logging` | Logging GPS estructurado (`agenticLogger`), standalone para cualquier Node/TS | `logging-standard`, `traceid-contract` | 1.1.1 |
 | `alyp-observability` | OTel agnóstico, Vercel Log Drains, reemplaza stubs de logger/error-codes | `observability` | 1.1.0 |
 | `alyp-qa-standard` | Catálogo de flujos YAML, Playwright con 3 oráculos (UI+DB+logs), smoke agéntico | `qa-standard` | 1.0.0 |
 | `devstral-orchestration` | Protocolo multi-modelo v2.6 (6 tiers, `capacity.yaml` por entorno) | `orchestration` | 2.6.0 |
