@@ -11,6 +11,8 @@
 - devstral-orchestration v2.6: tiers abstractos + `capacity.yaml` por máquina.
 - Instalador `scripts/install.sh` + empaquetado como plugin de Claude Code.
 - Meta-QA: `lint-skills.mjs` + canario en CI.
+- Fix agentic-logging 1.1.1 (detectado por el canario de Task 14): (a) logger.ts compila bajo strict + noUncheckedIndexedAccess — non-null assertions en los grupos de captura de `parseLinea`, justificadas por el `if (match)` previo (7 errores TS2322/TS2345/TS2532; sin cambios de comportamiento); (b) `.eslintrc.agentic.cjs` — se quita `allow: []` de `no-console` (el schema de ESLint 8 exige minItems: 1 y abortaba toda la config; el default ya prohíbe todo console.*).
+- Fix scripts/canary.sh: error de sintaxis bash latente en el step 3 (heredoc encadenado con `&&` en línea continuada); nunca se había ejecutado porque el step 2 fallaba antes. Con ambos fixes, `./scripts/canary.sh` llega a "CANARIO OK".
 
 ## v1 — 2026-05-29
 

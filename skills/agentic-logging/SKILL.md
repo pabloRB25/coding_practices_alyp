@@ -1,6 +1,6 @@
 ---
 name: agentic-logging
-version: 1.1.0
+version: 1.1.1
 provides: [logging-standard, traceid-contract]
 description: >
   Install or audit the "Agentic-First Logging Standard" in any Node/TypeScript

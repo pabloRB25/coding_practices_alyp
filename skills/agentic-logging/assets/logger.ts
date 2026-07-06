@@ -89,18 +89,21 @@ function normalizarArchivo(p: string): string {
 }
 
 function parseLinea(l: string): Omit<Ubicacion, 'raw'> {
+  // Los `!` son seguros: si el match no es null, todos los grupos de captura
+  // del regex (no opcionales) están presentes; TS no lo infiere bajo
+  // noUncheckedIndexedAccess.
   const conParen = l.match(/at\s+(.+?)\s+\((.+?):(\d+):(\d+)\)/);
   if (conParen) {
     return {
-      funcion: conParen[1],
-      archivo: normalizarArchivo(conParen[2]),
-      linea:   +conParen[3],
-      columna: +conParen[4],
+      funcion: conParen[1]!,
+      archivo: normalizarArchivo(conParen[2]!),
+      linea:   +conParen[3]!,
+      columna: +conParen[4]!,
     };
   }
   const sinParen = l.match(/at\s+(.+?):(\d+):(\d+)/);
   if (sinParen) {
-    return { funcion: null, archivo: normalizarArchivo(sinParen[1]), linea: +sinParen[2], columna: +sinParen[3] };
+    return { funcion: null, archivo: normalizarArchivo(sinParen[1]!), linea: +sinParen[2]!, columna: +sinParen[3]! };
   }
   return { funcion: null, archivo: null, linea: null, columna: null };
 }
