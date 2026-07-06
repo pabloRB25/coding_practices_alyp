@@ -132,7 +132,9 @@ algo del estándar global. Procedimiento:
   loop sin humano delante. Decide y aplica con estos criterios; no deja decisiones
   "para que las tome el usuario".
 - **No implementa código de producto** ni toca el plan/tareas. Solo escribe sobre
-  `.claude/skills/` del repo.
+  `.claude/skills/` del repo — con una única excepción: la acción `promover`, que
+  puede abrir un PR de propuesta en el repo de estándares
+  (`alyp-studio/coding_practices_alyp`).
 - **Todo anclado en evidencia.** Cada skill creada o borrada se justifica en algo
   concreto leído.
 - **No duplica.** Ni a engram, ni a `CLAUDE.md`, ni entre skills locales.
