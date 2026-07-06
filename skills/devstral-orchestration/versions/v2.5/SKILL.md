@@ -1,18 +1,12 @@
 ---
 name: devstral-orchestration
-version: 2.6.0
+version: 2.5.0
 provides: [orchestration]
 description: >
-  Protocolo de orquestación multi-modelo v2.6 de Claude Code para Alyp Studio — dual Fable/Opus. El orquestador (Fable u Opus, auto-detectado) rutea entre 6 roles: orquestador, consultor Fable (escalación por duda del modo Opus, veredicto ⬆ FABLE), subagentes Opus (razonamiento pesado), subagentes Sonnet (implementador/explorador/revisor), ejecutor local en dos tiers (qwen2.5-coder:3b light / qwen3-coder:30b heavy) vía delegate_to_devstral, y QA qwen2.5-coder:3b. Invocar ANTES de orquestar o delegar por primera vez en la sesión, o para interpretar veredictos del hook (✅/⚠/❌/🚨). Versiones anteriores en versions/. Mapeo tier→modelo y límites del entorno en ~/.claude/capacity.yaml (contrato: contracts/orchestration.md).
+  Protocolo de orquestación multi-modelo v2.5 de Claude Code para Alyp Studio — dual Fable/Opus. El orquestador (Fable u Opus, auto-detectado) rutea entre 6 roles: orquestador, consultor Fable (escalación por duda del modo Opus, veredicto ⬆ FABLE), subagentes Opus (razonamiento pesado), subagentes Sonnet (implementador/explorador/revisor), ejecutor local en dos tiers (qwen2.5-coder:3b light / qwen3-coder:30b heavy) vía delegate_to_devstral, y QA qwen2.5-coder:3b. Invocar ANTES de orquestar o delegar por primera vez en la sesión, o para interpretar veredictos del hook (✅/⚠/❌/🚨). Versiones anteriores en versions/.
 ---
 
-# Orquestación multi-modelo v2.6 — Alyp Studio (tiers + capacity)
-
-> **Capacity**: los nombres de modelos de este documento son el mapeo ACTUAL de
-> `~/.claude/capacity.yaml` (si no existe: copiá `capacity.example.yaml` de este
-> skill y avisá una vez). Doctrina = tiers (juez/razonador/obrero/barato/mecánico);
-> ver `contracts/orchestration.md`. Cambia un modelo → se edita capacity.yaml,
-> no este protocolo.
+# Orquestación multi-modelo v2.5 — Alyp Studio (dual Fable/Opus)
 
 Objetivo: **máxima calidad al menor costo de tokens**. El costo dominante no es
 qué modelo trabaja, sino cuánto contexto acumula el orquestador — que en v2.5
@@ -58,12 +52,12 @@ powered by …"). Ramificá:
 
 | Nivel | Modelo | Rol |
 |---|---|---|
-| **Orquestador (tier juez)** | **Fable u Opus (vos, el loop principal)** | Routing, descomposición de planes, síntesis de resultados, resolución de ambigüedad con el usuario, **aprobación final** de seguridad crítica y de merge/prod. Trabajo inline solo cuando delegar cuesta más que hacerlo (cambios de <5 min, decisiones de 1 línea). |
-| **Consultor (tier juez)** | **Fable (agente `consultor`, `model: "fable"`)** | Escalación del orquestador en Modo Opus (por duda) o Degradado (obligatoria en crítico): destraba, decide y arbitra UNA consulta puntual desde contexto aislado. Devuelve veredicto `⬆ FABLE`. No aplica cuando orquesta Fable. |
+| **Orquestador** | **Fable u Opus (vos, el loop principal)** | Routing, descomposición de planes, síntesis de resultados, resolución de ambigüedad con el usuario, **aprobación final** de seguridad crítica y de merge/prod. Trabajo inline solo cuando delegar cuesta más que hacerlo (cambios de <5 min, decisiones de 1 línea). |
+| **Consultor** | **Fable (agente `consultor`, `model: "fable"`)** | Escalación del orquestador en Modo Opus (por duda) o Degradado (obligatoria en crítico): destraba, decide y arbitra UNA consulta puntual desde contexto aislado. Devuelve veredicto `⬆ FABLE`. No aplica cuando orquesta Fable. |
 | **Razonador** | **Opus (subagentes, `model: "opus"` en la tool Agent)** | Razonamiento pesado delegado: análisis de seguridad crítica (borrador — vos aprobás), diseño de arquitectura detallado a partir de tu spec, debugging endiablado, juez adversarial de evidencia, review final pre-prod (borrador). |
 | **Obrero** | **Sonnet (subagentes, default de los agentes)** | Implementación, research, debugging normal, review no-crítico, verificación en browser |
 | **Mecánico** | **Local (`delegate_to_devstral`), por niveles** | Tareas mecánicas, verificables e inequívocas. **`tier="light"` (qwen2.5-coder:3b) = default rápido** (~6 GB con el QA, sin presión de SO); `tier="heavy"` (30B) solo para mecánico-con-razonamiento — pesa ~21 GB, no co-reside cómodo. **Alternativa cloud: `model: "haiku"`** cuando Ollama está apagado/saturado o cuando importa wall-clock (ver scheduler). |
-| **QA (qa-automático)** | **qwen2.5-coder:3b (hooks)** | Veredicto automático tras Edit/Write y tras cada delegación. Modelo chico → residente junto al ejecutor, sin swap |
+| **QA** | **qwen2.5-coder:3b (hooks)** | Veredicto automático tras Edit/Write y tras cada delegación. Modelo chico → residente junto al ejecutor, sin swap |
 
 Los agentes `implementador`/`explorador`/`revisor` declaran `model: sonnet` en
 su frontmatter, pero **el parámetro `model` de la tool Agent lo sobreescribe por
@@ -223,10 +217,14 @@ El hook `supervise-devstral.py` emite un veredicto. Seguí:
   (`archivo:línea`, test, salida de comando) igual que al `revisor`.
 - El nombre `delegate_to_devstral` y los archivos `*devstral*` se conservan por
   compatibilidad (settings/permisos); el modelo ejecutor es Qwen3-Coder.
-- Límites del entorno (RAM, tiers locales, delegaciones concurrentes, tamaño de ola):
-  en `~/.claude/capacity.yaml`. Los valores medidos de ESTA máquina están en
-  `~/local-llm-stack/ARCHITECTURE.md`. Regla portable: default al tier light local;
-  heavy solo con razonamiento mecánico, asumiendo que no co-reside cómodo.
+- RAM (36 GB, **medido**): el camino rápido y robusto es el **tier light** —
+  ejecutor `qwen2.5-coder:3b` (~3 GB) + QA 3B (~3 GB) = **~6 GB**, deja el SO al
+  74% libre; QA en **~5 s**, dos delegaciones concurrentes (`NUM_PARALLEL=2`).
+  El **tier heavy 30B (~21 GB)** cabe en Ollama pero, co-residente con el QA y
+  con Claude Code + Chrome + monitor corriendo, **presiona el SO y lo hace
+  paginar a disco** (medido: una QA trepó a 167 s vs 5 s). Regla: **default a
+  light; usá heavy solo cuando la tarea necesita razonamiento, y asumí que el
+  30B no co-reside cómodo con nada más**.
 
 ## Optimización de velocidad — scheduler de 2 carriles + mezcla de tiers
 
@@ -284,8 +282,6 @@ en cloud, no en tus cores). Maximizá unidades independientes y el resto se acom
 | `OLLAMA_NUM_PARALLEL` | `2` | 2 requests concurrentes por modelo; >2 infla el KV del 30B y rompe la coexistencia |
 | `OLLAMA_FLASH_ATTENTION` | `1` | reduce KV-cache → entran más slots |
 | `num_ctx` ejecutor | `16384` | Ollama pre-asigna KV = `NUM_PARALLEL × num_ctx`; 32768 inflaba el 30B a 28 GB |
-
-Estos valores son la instancia local de capacity.yaml (local.max_delegaciones_vivas = OLLAMA_NUM_PARALLEL).
 
 Persistido en `~/Library/LaunchAgents/com.alyp.ollama-env.plist` (RunAtLoad).
 
