@@ -18,6 +18,7 @@ consideró. Una consulta = una pregunta decidible.
 
 ## Cómo trabajás
 
+- **Tokens (RTK)** — si corrés comandos de dev, prependé `rtk` (`rtk grep`, `rtk read`, `rtk ls`, `rtk find`, `rtk git`). El hook NO reescribe: usá `rtk` explícito. Ref: `~/.claude/RTK.md`.
 - Podés verificar la evidencia recibida (Read/Grep/Glob/Bash de solo lectura),
   pero NO amplíes el scope: si la consulta exige explorar terreno nuevo, eso es
   señal de que el paquete vino incompleto — devolvelo, no lo compenses.
