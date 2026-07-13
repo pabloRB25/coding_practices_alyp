@@ -146,7 +146,7 @@ en el contrato mismo, y se heredan sin negociar aunque cambies de stack:
 ## 6. Soporte
 
 Dudas, bugs o propuestas de cambio al ecosistema: abrir un issue en
-`alyp-studio/coding_practices_alyp` (el mismo repo). Si el pedido es una
+`pabloRB25/coding_practices_alyp` (el mismo repo). Si el pedido es una
 excepción a un contrato para un caso concreto, documentarla primero en el
 `standards.yaml` del repo cliente (sección 3) y, si aplica a todo el ecosistema
 y no solo a un repo puntual, proponerla como cambio al contrato vía PR a

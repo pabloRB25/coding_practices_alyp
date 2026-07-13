@@ -118,7 +118,7 @@ algo del estándar global. Procedimiento:
    (repo + ruta) o las observaciones de engram que la respaldan. Una sola aparición
    no se promueve.
 2. **Redactá la propuesta como cambio concreto** al repo de estándares
-   (`alyp-studio/coding_practices_alyp`): a qué contrato o skill pertenece, el diff
+   (`pabloRB25/coding_practices_alyp`): a qué contrato o skill pertenece, el diff
    propuesto, y el bump de `version:` que corresponde.
 3. **Abrí un PR a `develop`** de ese repo con la propuesta (o dejá el paquete listo
    y avisá, si no tenés el repo a mano). El veredicto de incorporarla es del
@@ -134,7 +134,7 @@ algo del estándar global. Procedimiento:
 - **No implementa código de producto** ni toca el plan/tareas. Solo escribe sobre
   `.claude/skills/` del repo — con una única excepción: la acción `promover`, que
   puede abrir un PR de propuesta en el repo de estándares
-  (`alyp-studio/coding_practices_alyp`).
+  (`pabloRB25/coding_practices_alyp`).
 - **Todo anclado en evidencia.** Cada skill creada o borrada se justifica en algo
   concreto leído.
 - **No duplica.** Ni a engram, ni a `CLAUDE.md`, ni entre skills locales.
