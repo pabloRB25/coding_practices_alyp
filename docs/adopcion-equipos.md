@@ -64,7 +64,7 @@ en `standards.yaml`, en la raíz del repo (ver `contracts/standards.example.yaml
 como plantilla). Ejemplo mínimo:
 
 ```yaml
-ecosistema: 2.0.0
+ecosistema: 2.1.0
 perfil: next-supabase-vercel
 estandares:
   code-standard: v1                           # sello en CLAUDE.md: agentic-standard: v1
@@ -129,6 +129,17 @@ en el contrato mismo, y se heredan sin negociar aunque cambies de stack:
   pero no requerido por ningún contrato ni por ningún otro skill (`provides:
   [curaduria]`, sin `requires:`). Un equipo puede adoptar los 4 contratos
   centrales (logging, code, observability, qa) sin tocar `alyp-maestro`.
+- **Nota Windows**: la instalación del ecosistema (plugin o `node
+  scripts/install.mjs`) y la meta-QA (`scripts/lint-skills.mjs`,
+  `scripts/canary.mjs`) son cross-platform — corren igual en Windows que en
+  macOS/Linux, sin dependencias extra. Lo que sí requiere algo adicional en
+  Windows es el **uso** cotidiano de los skills: la herramienta Bash de Claude
+  Code necesita Git for Windows (Git Bash) instalado para que los comandos
+  POSIX que los skills invocan (`cp`, `grep`, `pnpm`, etc.) funcionen. Y si el
+  equipo adopta `alyp-token-savings`, ese skill puntual requiere Python 3 en
+  el PATH — es el único skill del ecosistema con esa dependencia. Detalle
+  completo en la sección "Requisitos por plataforma" de
+  [`installation.md`](./installation.md).
 
 ---
 
@@ -140,3 +151,8 @@ excepción a un contrato para un caso concreto, documentarla primero en el
 `standards.yaml` del repo cliente (sección 3) y, si aplica a todo el ecosistema
 y no solo a un repo puntual, proponerla como cambio al contrato vía PR a
 `develop`.
+
+Problemas específicos de Windows (Git Bash no detectado, `CLAUDE_CODE_GIT_BASH_PATH`,
+Python 3 ausente para `alyp-token-savings`): ver "Requisitos por plataforma" en
+[`installation.md`](./installation.md) antes de abrir un issue — cubre los
+casos conocidos.

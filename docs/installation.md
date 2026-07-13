@@ -1,15 +1,16 @@
 # Instalación
 
-Este repo distribuye su ecosistema (skills + agentes) de tres formas. Elegí según
-quién sos: un equipo que **consume** el estándar (vías 1 y 2), o alguien que
-**desarrolla** el ecosistema mismo (vía 2 con `--link`, o vía 3 puntual).
+Este repo distribuye su ecosistema (skills + agentes) de tres formas, las tres
+**cross-platform** (macOS · Linux · Windows). Elegí según quién sos: un equipo
+que **consume** el estándar (vías 1 y 2), o alguien que **desarrolla** el
+ecosistema mismo (vía 2 con `--link`, o vía 3 puntual).
 
 ---
 
-## Vía 1 — Plugin de Claude Code (recomendada para equipos)
+## Vía 1 — Plugin de Claude Code (recomendada, especialmente en Windows)
 
 La forma más simple de adoptar el ecosistema completo en Claude Code, sin clonar
-el repo a mano.
+el repo a mano ni preocuparse por diferencias de shell entre sistemas operativos.
 
 ```
 /plugin marketplace add alyp-studio/coding_practices_alyp
@@ -18,40 +19,71 @@ el repo a mano.
 
 Esto registra el marketplace `alyp-studio` (`.claude-plugin/marketplace.json`) e
 instala el plugin `alyp-dev-standards` (`.claude-plugin/plugin.json`), que empaqueta
-los 7 skills y los 4 agentes del ecosistema. Es la vía recomendada por defecto:
-no requiere `git clone` ni gestionar rutas, y las actualizaciones futuras del
-plugin llegan por el mismo mecanismo de `/plugin`.
+los 8 skills y los 4 agentes del ecosistema. Es la vía recomendada por defecto en
+**cualquier** plataforma — el mecanismo `/plugin` es nativo de Claude Code e
+idéntico en macOS, Linux y Windows: no requiere `git clone`, no requiere Node ni
+un shell POSIX, y las actualizaciones futuras del plugin llegan por el mismo
+mecanismo de `/plugin`.
+
+**Importante — qué NO cablea el plugin**: el plugin instala skills y agentes,
+pero **no** cablea los artefactos runtime de `alyp-token-savings` (statusline de
+contexto, hook `context-guard`, keys en `~/.claude/settings.json`). Ese cableado
+lo hace únicamente el instalador de la Vía 2 (`node scripts/install.mjs`), porque
+necesita escribir en `settings.json` del usuario — algo que un plugin no hace por
+vos. Si solo instalaste vía plugin y querés también el ahorro de tokens, corré
+la Vía 2 (podés correrla igual sin clonar el repo entero si ya tenés el plugin:
+cloná el repo puntualmente o pedile a alguien del equipo que corra el script una
+vez y comparta el `settings.json` resultante).
 
 ---
 
 ## Vía 2 — Script de instalación
 
 Para quienes prefieren clonar el repo (o ya lo tienen clonado como referencia)
-y quieren un instalador explícito.
+y quieren un instalador explícito, o necesitan el cableado de `alyp-token-savings`
+que la Vía 1 no cubre.
 
 ```bash
 git clone https://github.com/alyp-studio/coding_practices_alyp.git
 cd coding_practices_alyp
-./scripts/install.sh
+node scripts/install.mjs
 ```
 
-`scripts/install.sh` soporta:
+El instalador (`scripts/install.mjs`) es un script de Node **cross-platform**:
+corre igual en macOS, Linux y Windows, sin depender de bash ni de Python para
+instalar skills y agentes. Los shims `./scripts/install.sh` (Unix — bash) y
+`.\scripts\install.ps1` (Windows — PowerShell) son atajos finos que solo invocan
+`node scripts/install.mjs "$@"`; no duplican lógica, así que usar uno u otro da
+exactamente el mismo resultado.
+
+```powershell
+# Windows (PowerShell)
+node scripts/install.mjs
+# o el shim equivalente:
+.\scripts\install.ps1
+```
+
+`scripts/install.mjs` soporta:
 
 | Flag | Default | Qué hace |
 |---|---|---|
 | `--copy` | sí (default) | Copia `skills/` y `agents/` a destino. Para equipos externos: cada máquina tiene su propia copia, independiente de este repo. |
-| `--link` | no | Crea symlinks al repo en vez de copiar. Pensado para quien **desarrolla el ecosistema**: cero drift entre el repo y lo instalado — cualquier edición en `skills/` se refleja al instante. |
-| `--target DIR` | `~/.claude` | Cambia el destino de la instalación (por defecto instala en `~/.claude/skills/` y `~/.claude/agents/`). |
+| `--link` | no | Crea symlinks al repo en vez de copiar (junction en directorios en Windows, symlink en Unix; si el symlink de archivo falla en Windows por falta de Developer Mode, cae a copia automáticamente). Pensado para quien **desarrolla el ecosistema**: cero drift entre el repo y lo instalado — cualquier edición en `skills/` se refleja al instante. |
+| `--target DIR` | `~/.claude` | Cambia el destino de la instalación (por defecto instala en `~/.claude/skills/` y `~/.claude/agents/`; en Windows, `~/.claude` es `%USERPROFILE%\.claude`). |
 
 Ejemplo para desarrollo del propio ecosistema:
 
 ```bash
-./scripts/install.sh --link
+node scripts/install.mjs --link
 ```
 
-El script instala los 7 skills completos (`alyp-new-project`, `alyp-agentic-standards`,
+El script instala los 8 skills completos (`alyp-new-project`, `alyp-agentic-standards`,
 `agentic-logging`, `alyp-observability`, `alyp-qa-standard`, `devstral-orchestration`,
-`alyp-maestro`) y los 4 agentes (`consultor`, `explorador`, `implementador`, `revisor`).
+`alyp-maestro`, `alyp-token-savings`) y los 4 agentes (`consultor`, `explorador`,
+`implementador`, `revisor`). Además, si el skill `alyp-token-savings` está presente,
+el instalador intenta cablear su statusline y su hook en `~/.claude/settings.json`
+(ver "Requisitos por plataforma" más abajo — necesita Python 3; si no lo encuentra,
+avisa y saltea ese paso sin fallar la instalación del resto).
 
 ---
 
@@ -64,6 +96,9 @@ el script.
 `SKILL.md`. Los assets, referencias y templates (`assets/`, `references/`,
 `templates/`) son parte del skill — un `SKILL.md` suelto, sin sus archivos
 acompañantes, produce un skill roto o incompleto.
+
+Ejemplo en bash (macOS/Linux, o Windows con Git Bash instalado — ver "Requisitos
+por plataforma"; en PowerShell nativo el equivalente es `Copy-Item -Recurse`):
 
 ```bash
 # Ejemplo: instalar solo el estándar de logging
@@ -78,8 +113,13 @@ cp -R skills/alyp-observability      ~/.claude/skills/
 cp -R skills/alyp-qa-standard        ~/.claude/skills/
 cp -R skills/devstral-orchestration  ~/.claude/skills/
 cp -R skills/alyp-maestro            ~/.claude/skills/
+cp -R skills/alyp-token-savings      ~/.claude/skills/
 cp    agents/*.md                    ~/.claude/agents/
 ```
+
+En Vía 3 el cableado de `alyp-token-savings` (statusline/hook/`settings.json`)
+queda 100% manual — no hay script que lo haga por vos; ver el `SKILL.md` del
+skill para el detalle de qué archivos copiar y qué keys agregar.
 
 ---
 
@@ -112,6 +152,26 @@ es agnóstico de modelos concretos; este archivo es lo que lo hace concreto en t
   No es requisito de ningún otro skill del ecosistema; se adopta cuando el equipo
   quiere que Claude destile aprendizajes en skills locales versionadas del repo
   cliente.
+- **`alyp-token-savings`**: es el skill de ahorro de tokens (statusline + hook de
+  contexto). No es requisito de ningún otro skill; ver "Requisitos por plataforma"
+  para su dependencia de Python 3.
+
+---
+
+## Requisitos por plataforma
+
+Requisitos para **instalar y mantener** el ecosistema (distintos de los
+requisitos para usar `alyp-new-project` — ver la sección siguiente).
+
+| Requisito | Para qué | Notas |
+|---|---|---|
+| `node >= 20.11` | Correr el instalador (`scripts/install.mjs`), `scripts/check-drift.mjs` y la meta-QA (`scripts/lint-skills.mjs`, `scripts/canary.mjs`) | Cross-platform: la misma versión de Node sirve en macOS, Linux y Windows. La Vía 1 (plugin) no necesita Node. |
+| **Git for Windows (Git Bash)** — solo Windows | Que la herramienta Bash de Claude Code (usada por los skills que corren `cp`, `grep`, `pnpm`, etc.) funcione | Claude Code usa Git Bash como intérprete de su herramienta Bash si lo detecta instalado; si no lo detecta, cae a PowerShell y los comandos POSIX que los skills invocan fallan. Si tenés Git for Windows instalado pero Claude Code no lo detecta, configurá `CLAUDE_CODE_GIT_BASH_PATH` apuntando al `bash.exe` en `settings.json`. |
+| **Python 3** (`python`, `py` o `python3` en el PATH) — solo si usás `alyp-token-savings` | Correr la statusline de contexto y el hook `context-guard` | Opcional: si el instalador (Vía 2) no encuentra Python 3, cablea el resto de la instalación igual y avisa que saltea el statusline/hook — no falla la instalación completa. |
+
+Nota de rutas en Windows: `~/.claude` es `%USERPROFILE%\.claude` (típicamente
+`C:\Users\<usuario>\.claude`). Todos los ejemplos de este documento que muestran
+`~/.claude` asumen esa equivalencia en Windows.
 
 ---
 
@@ -125,30 +185,34 @@ mecanismo de actualización de plugins de Claude Code) trae la versión más nue
 ```bash
 cd coding_practices_alyp
 git pull
-./scripts/install.sh          # re-copia skills y agentes actualizados
+node scripts/install.mjs          # re-copia skills y agentes actualizados
 ```
 
-**Vía script, modo `--link`**: no hace falta re-instalar — los symlinks apuntan
-al repo, así que un `git pull` ya deja lo instalado al día.
+**Vía script, modo `--link`**: no hace falta re-instalar — los symlinks/junctions
+apuntan al repo, así que un `git pull` ya deja lo instalado al día.
 
 **Verificar que no hay drift** entre lo que hay en el repo y lo instalado
 (útil sobre todo en modo `--copy`, donde es fácil olvidarse de re-instalar):
 
 ```bash
-./scripts/check-drift.sh
-# → sin salida = todo al día
+node scripts/check-drift.mjs
+# → exit 0, sin salida = todo al día
 # → "FALTA: <skill>" = un skill del repo no está instalado
 # → "DRIFT: <skill> difiere..." = la copia instalada quedó desactualizada
 ```
 
-`check-drift.sh` ignora los skills instalados como symlink (modo `--link`), porque
-esos nunca pueden tener drift.
+`scripts/check-drift.mjs` es igual de cross-platform que el instalador (y tiene
+los mismos shims, `./scripts/check-drift.sh` y `.\scripts\check-drift.ps1`).
+Ignora los skills instalados como symlink/junction (modo `--link`), porque esos
+nunca pueden tener drift.
 
 ---
 
-## Prerequisitos del sistema
+## Prerequisitos del sistema (para `alyp-new-project`)
 
-Antes de invocar `alyp-new-project` (el orquestador de scaffolding), verificar:
+Estos son requisitos aparte, no para instalar el ecosistema sino para **usar**
+`alyp-new-project` (el orquestador de scaffolding) una vez instalado — verificar
+antes de invocarlo:
 
 | Herramienta | Versión mínima | Para qué |
 |-------------|----------------|---------|

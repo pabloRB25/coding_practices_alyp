@@ -33,7 +33,7 @@ cada proyecto: se instala (skills) o se referencia (manifiesto), y el
         ▼
 
 2. skills/  (perfil next·supabase·vercel)   +   agents/
-   7 skills instalables + 4 agentes de Claude Code
+   8 skills instalables + 4 agentes de Claude Code
    → el "cómo" concreto para el stack de Alyp Studio
    → se instalan en ~/.claude/skills/ (ver docs/installation.md)
 
@@ -53,7 +53,7 @@ heredan sin negociar.
 
 ---
 
-## Los 7 skills
+## Los 8 skills
 
 | Skill | Rol | Contrato que implementa | Versión |
 |---|---|---|---|
@@ -64,6 +64,7 @@ heredan sin negociar.
 | `alyp-qa-standard` | Catálogo de flujos YAML, Playwright con 3 oráculos (UI+DB+logs), smoke agéntico | `qa-standard` | 1.0.0 |
 | `devstral-orchestration` | Protocolo multi-modelo v2.6 (6 tiers, `capacity.yaml` por entorno) | `orchestration` | 2.6.0 |
 | `alyp-maestro` | Curaduría de conocimiento LOCAL por proyecto (skills en `.claude/skills/` del repo cliente) | — (`provides: [curaduria]`, sin contrato propio) | 1.0.0 |
+| `alyp-token-savings` | Ahorro de tokens de Claude Code — statusline de contexto, hook `context-guard`, política RTK | — (`provides: [token-savings]`, sin contrato propio) | 1.0.1 |
 
 Los 4 agentes de Claude Code (`agents/`) — `consultor`, `explorador`,
 `implementador`, `revisor` — son los subagentes que el protocolo de
@@ -74,10 +75,11 @@ desempate.
 
 ## Instalación
 
-Ver [`docs/installation.md`](docs/installation.md) — tres vías: plugin de
-Claude Code (recomendada para equipos), script (`./scripts/install.sh`, con
-modo `--link` para desarrollo del ecosistema), o copia manual de skills
-puntuales.
+Ver [`docs/installation.md`](docs/installation.md) — tres vías, las tres
+cross-platform (macOS · Linux · Windows): plugin de Claude Code (recomendada
+para equipos, especialmente en Windows), script (`node scripts/install.mjs`,
+con shims `./scripts/install.sh` / `.\scripts\install.ps1` y modo `--link`
+para desarrollo del ecosistema), o copia manual de skills puntuales.
 
 ---
 
@@ -86,11 +88,20 @@ puntuales.
 Para quien edita `skills/`, `contracts/` o `agents/` en este repo (no para
 equipos que solo lo consumen):
 
-**Modo `--link`**: instalar con `./scripts/install.sh --link` symlinkea
-`~/.claude/skills/*` y `~/.claude/agents/*` a este repo — cero drift, cualquier
-edición se refleja al instante sin re-instalar. `scripts/check-drift.sh`
-detecta si una instalación en modo `--copy` quedó desactualizada respecto al
-repo (o si falta instalar algún skill).
+**Prerequisitos**: `node >= 20.11`. Cross-platform: macOS · Linux · Windows —
+el instalador y la meta-QA están escritos en Node, sin dependencias de bash ni
+Python. En Windows, la herramienta Bash de Claude Code (la que usan los skills
+para `cp`/`grep`/`pnpm`, no los scripts de este repo) usa Git for Windows (Git
+Bash) si está instalado — ver "Requisitos por plataforma" en
+[`docs/installation.md`](docs/installation.md).
+
+**Modo `--link`**: instalar con `node scripts/install.mjs --link` symlinkea
+(junction en Windows) `~/.claude/skills/*` y `~/.claude/agents/*` a este repo —
+cero drift, cualquier edición se refleja al instante sin re-instalar. Los
+shims `./scripts/install.sh` (Unix) y `.\scripts\install.ps1` (Windows) invocan
+lo mismo. `node scripts/check-drift.mjs` detecta si una instalación en modo
+`--copy` quedó desactualizada respecto al repo (o si falta instalar algún
+skill).
 
 **Lint estructural**: `node scripts/lint-skills.mjs` valida que cada skill
 tenga frontmatter completo (`name`, `description`, `version`), que el grafo
@@ -99,11 +110,13 @@ provee), y que las referencias a `assets/`/`references/`/`templates/`
 mencionadas en el `SKILL.md` existan en disco. Correrlo antes de todo PR que
 toque `skills/`.
 
-**Canario funcional**: `./scripts/canary.sh` es meta-QA — prueba que los
+**Canario funcional**: `node scripts/canary.mjs` es meta-QA — prueba que los
 assets de los skills sigan instalables y funcionales (compilan bajo TS
 estricto, el lint agentic dispara donde debe). Corre local antes de un PR
-grande y automático en CI (workflow `canario-ecosistema`) ante cambios en
-`skills/`, `contracts/`, `scripts/` o `canary/`.
+grande y automático en CI (workflow `canario-ecosistema`, matriz `ubuntu-latest`
++ `windows-latest`) ante cambios en `skills/`, `contracts/`, `scripts/` o
+`canary/` — el mismo workflow también corre un smoke de instalación (`--copy`)
++ `check-drift` en ambos sistemas operativos.
 
 **Cómo versionar un cambio a un skill**:
 1. Editar el skill correspondiente en `skills/<nombre>/`.
@@ -136,7 +149,8 @@ coding_practices_alyp/
 │   ├── alyp-observability/
 │   ├── alyp-qa-standard/
 │   ├── devstral-orchestration/
-│   └── alyp-maestro/
+│   ├── alyp-maestro/
+│   └── alyp-token-savings/
 ├── agents/                         # subagentes de Claude Code
 │   ├── consultor.md
 │   ├── explorador.md
@@ -145,9 +159,13 @@ coding_practices_alyp/
 ├── .claude-plugin/                 # empaquetado como plugin instalable
 │   ├── plugin.json                 # alyp-dev-standards
 │   └── marketplace.json            # marketplace alyp-studio
-├── scripts/
-│   ├── install.sh                  # --copy | --link | --target
-│   ├── check-drift.sh              # detecta drift repo vs. instalado
+├── scripts/                        # cross-platform (Node) + shims .sh/.ps1
+│   ├── install.mjs                 # --copy | --link | --target
+│   ├── install.sh / install.ps1    # shims que invocan install.mjs
+│   ├── check-drift.mjs             # detecta drift repo vs. instalado
+│   ├── check-drift.sh / check-drift.ps1
+│   ├── canary.mjs                  # meta-QA funcional (canario)
+│   ├── canary.sh                   # shim que invoca canary.mjs
 │   └── lint-skills.mjs             # meta-QA estructural de skills/
 ├── guides/
 │   └── guia-codigo-agentic-ready.md
@@ -189,6 +207,6 @@ happy path — "parece correcto" no es evaluable.
 
 - [`docs/installation.md`](docs/installation.md) — cómo instalar
 - [`docs/adopcion-equipos.md`](docs/adopcion-equipos.md) — qué adopta un equipo y en qué orden
-- [`docs/skill-ecosystem.md`](docs/skill-ecosystem.md) — cadena de delegación entre los 7 skills y ciclo operativo
+- [`docs/skill-ecosystem.md`](docs/skill-ecosystem.md) — cadena de delegación entre los 8 skills y ciclo operativo
 - [`docs/environment-strategy.md`](docs/environment-strategy.md) — estrategia de ambientes dev/staging/prod
 - [`guides/guia-codigo-agentic-ready.md`](guides/guia-codigo-agentic-ready.md) — guía de referencia completa del estándar de código
