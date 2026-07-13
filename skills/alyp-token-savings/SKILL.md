@@ -1,6 +1,6 @@
 ---
 name: alyp-token-savings
-version: 1.0.0
+version: 1.0.1
 provides: [token-savings]
 description: Instala o audita el setup de ahorro de tokens de Claude Code de Alyp Studio en ~/.claude — statusline de contexto (K/% vivo), hook context-guard (aviso no-bloqueante al cruzar 200K), política RTK explícita, y el merge de keys en settings.json. Se instala vía scripts/install.sh de coding_practices_alyp (modos --copy/--link). Invocar cuando el usuario pida "instalar el ahorro de tokens", "montar la statusline de contexto", "setup de tokens en esta máquina", "auditar el ahorro de tokens", o al configurar una máquina/perfil nuevo de Claude Code.
 ---
@@ -26,12 +26,16 @@ Se instala con el installer del ecosistema — el mismo que monta skills y agent
 ```bash
 git clone https://github.com/alyp-studio/coding_practices_alyp.git
 cd coding_practices_alyp
-./scripts/install.sh            # --copy (default): copia a ~/.claude
-./scripts/install.sh --link     # symlinks al repo (dev, cero drift)
+node scripts/install.mjs            # universal (macOS · Linux · Windows)
+# convenience: ./scripts/install.sh (Unix) · .\scripts\install.ps1 (Windows)
+node scripts/install.mjs --link     # symlinks/junctions al repo (dev, cero drift)
 ```
 
-El `install.sh` — además de skills + agentes — copia los artefactos de este skill a
+El `install.mjs` — además de skills + agentes — copia los artefactos de este skill a
 `~/.claude`, mergea las keys en `settings.json` (con backup) y valida el JSON.
+
+**En Windows, statusline/hook requieren Python 3 en el PATH** (`python` o `python3`);
+el instalador lo detecta y, si falta, saltea el cableado con aviso.
 
 **Después: reiniciá Claude Code** — statusline y hook aplican al reiniciar (no con
 `/statusline`, que reconfigura en vez de recargar).
@@ -41,7 +45,9 @@ El `install.sh` — además de skills + agentes — copia los artefactos de este
 ```bash
 test -f ~/.claude/statusline-context.py && echo "statusline OK"
 test -f ~/.claude/hooks/context-guard.py && echo "hook OK"
-python3 -c "import json;d=json.load(open('$HOME/.claude/settings.json'));\
+# Windows sin Git Bash usa `python`; macOS/Linux `python3`.
+PY=$(command -v python3 || command -v python)
+"$PY" -c "import json,os;d=json.load(open(os.path.expanduser('~/.claude/settings.json')));\
 print('statusLine:', 'statusLine' in d);\
 print('ctx-guard:', any('context-guard' in h.get('command','') \
 for b in d.get('hooks',{}).get('UserPromptSubmit',[]) for h in b.get('hooks',[])))"

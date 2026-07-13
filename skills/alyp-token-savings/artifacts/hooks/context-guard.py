@@ -11,6 +11,7 @@ Objetivo: recordar compactar antes/durante el premium de long-context en Opus [1
 import json
 import os
 import sys
+import tempfile
 
 THRESHOLD = 200_000
 BUCKET = 100_000          # avisa una vez por cada tramo de 100K
@@ -65,7 +66,7 @@ def main():
 
     # throttle por sesión: avisar solo cuando se cruza un nuevo tramo de 100K
     sid = data.get("session_id") or "default"
-    marker = os.path.join("/tmp", f"claude-ctxguard-{sid}")
+    marker = os.path.join(tempfile.gettempdir(), f"claude-ctxguard-{sid}")
     last_bucket = -1
     try:
         with open(marker) as m:
