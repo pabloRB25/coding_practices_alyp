@@ -19,7 +19,7 @@ const REPO_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const work = mkdtempSync(join(tmpdir(), 'alyp-canary-'));
-const run = (cmd, args, cwd) => execFileSync(cmd, args, { cwd, stdio: 'inherit' });
+const run = (cmd, args, cwd) => execFileSync(cmd, args, { cwd, stdio: 'inherit', shell: process.platform === 'win32' });
 
 try {
   console.log('== 1/3 lint estructural ==');
@@ -56,7 +56,7 @@ try {
 
   const runEslintJson = (target) => execFileSync(
     npx, ['eslint', '--no-eslintrc', '-c', '.eslintrc.cjs', '--format', 'json', target],
-    { cwd: eslintProj, encoding: 'utf8' },
+    { cwd: eslintProj, encoding: 'utf8', shell: process.platform === 'win32' },
   );
 
   // 3a) fixture: DEBE reportar violaciones → eslint sale con status 1 (no 0, no crash).
