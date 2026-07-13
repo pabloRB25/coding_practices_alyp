@@ -78,7 +78,7 @@ if (existsSync(ats)) {
     [join(ats, 'RTK.md'), join(target, 'RTK.md')],
   ];
   for (const [src, dst] of artefactos) if (existsSync(src)) place(src, dst, 'file');
-  if (!isWin) {
+  if (!isWin && mode === 'copy') {
     for (const f of ['statusline-context.py', join('hooks', 'context-guard.py')]) {
       try { chmodSync(join(target, f), 0o755); } catch { /* noop */ }
     }
