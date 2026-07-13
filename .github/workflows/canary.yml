@@ -1,16 +1,27 @@
 name: canario-ecosistema
 on:
   pull_request:
-    paths: ['skills/**', 'contracts/**', 'scripts/**', 'canary/**']
+    paths: ['skills/**', 'contracts/**', 'scripts/**', 'canary/**', '.github/workflows/canary.yml']
   push:
     branches: [develop, main]
-    paths: ['skills/**', 'contracts/**', 'scripts/**', 'canary/**']
+    paths: ['skills/**', 'contracts/**', 'scripts/**', 'canary/**', '.github/workflows/canary.yml']
 jobs:
   canary:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      - run: ./scripts/canary.sh
+      - name: canario
+        run: node scripts/canary.mjs
+      - name: smoke de instalación (copy) + drift
+        shell: bash
+        run: |
+          node scripts/install.mjs --copy --target "$RUNNER_TEMP/claude"
+          node scripts/check-drift.mjs "$RUNNER_TEMP/claude"
+          echo "instalación + drift OK en ${{ matrix.os }}"
