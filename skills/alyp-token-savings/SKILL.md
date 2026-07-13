@@ -24,7 +24,7 @@ de Claude Code en `~/.claude`. Idempotente: reinstalar re-sincroniza sin romper 
 Se instala con el installer del ecosistema — el mismo que monta skills y agentes:
 
 ```bash
-git clone https://github.com/alyp-studio/coding_practices_alyp.git
+git clone https://github.com/pabloRB25/coding_practices_alyp.git
 cd coding_practices_alyp
 node scripts/install.mjs            # universal (macOS · Linux · Windows)
 # convenience: ./scripts/install.sh (Unix) · .\scripts\install.ps1 (Windows)

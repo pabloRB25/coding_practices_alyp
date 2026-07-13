@@ -13,7 +13,7 @@ La forma más simple de adoptar el ecosistema completo en Claude Code, sin clona
 el repo a mano ni preocuparse por diferencias de shell entre sistemas operativos.
 
 ```
-/plugin marketplace add alyp-studio/coding_practices_alyp
+/plugin marketplace add pabloRB25/coding_practices_alyp
 /plugin install alyp-dev-standards@alyp-studio
 ```
 
@@ -44,7 +44,7 @@ y quieren un instalador explícito, o necesitan el cableado de `alyp-token-savin
 que la Vía 1 no cubre.
 
 ```bash
-git clone https://github.com/alyp-studio/coding_practices_alyp.git
+git clone https://github.com/pabloRB25/coding_practices_alyp.git
 cd coding_practices_alyp
 node scripts/install.mjs
 ```
