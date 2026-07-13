@@ -74,10 +74,11 @@ desempate.
 
 ## Instalación
 
-Ver [`docs/installation.md`](docs/installation.md) — tres vías: plugin de
-Claude Code (recomendada para equipos), script (`./scripts/install.sh`, con
-modo `--link` para desarrollo del ecosistema), o copia manual de skills
-puntuales.
+Ver [`docs/installation.md`](docs/installation.md) — tres vías, las tres
+cross-platform (macOS · Linux · Windows): plugin de Claude Code (recomendada
+para equipos, especialmente en Windows), script (`node scripts/install.mjs`,
+con shims `./scripts/install.sh` / `.\scripts\install.ps1` y modo `--link`
+para desarrollo del ecosistema), o copia manual de skills puntuales.
 
 ---
 
@@ -86,11 +87,20 @@ puntuales.
 Para quien edita `skills/`, `contracts/` o `agents/` en este repo (no para
 equipos que solo lo consumen):
 
-**Modo `--link`**: instalar con `./scripts/install.sh --link` symlinkea
-`~/.claude/skills/*` y `~/.claude/agents/*` a este repo — cero drift, cualquier
-edición se refleja al instante sin re-instalar. `scripts/check-drift.sh`
-detecta si una instalación en modo `--copy` quedó desactualizada respecto al
-repo (o si falta instalar algún skill).
+**Prerequisitos**: `node >= 20.11`. Cross-platform: macOS · Linux · Windows —
+el instalador y la meta-QA están escritos en Node, sin dependencias de bash ni
+Python. En Windows, la herramienta Bash de Claude Code (la que usan los skills
+para `cp`/`grep`/`pnpm`, no los scripts de este repo) usa Git for Windows (Git
+Bash) si está instalado — ver "Requisitos por plataforma" en
+[`docs/installation.md`](docs/installation.md).
+
+**Modo `--link`**: instalar con `node scripts/install.mjs --link` symlinkea
+(junction en Windows) `~/.claude/skills/*` y `~/.claude/agents/*` a este repo —
+cero drift, cualquier edición se refleja al instante sin re-instalar. Los
+shims `./scripts/install.sh` (Unix) y `.\scripts\install.ps1` (Windows) invocan
+lo mismo. `node scripts/check-drift.mjs` detecta si una instalación en modo
+`--copy` quedó desactualizada respecto al repo (o si falta instalar algún
+skill).
 
 **Lint estructural**: `node scripts/lint-skills.mjs` valida que cada skill
 tenga frontmatter completo (`name`, `description`, `version`), que el grafo
@@ -99,11 +109,13 @@ provee), y que las referencias a `assets/`/`references/`/`templates/`
 mencionadas en el `SKILL.md` existan en disco. Correrlo antes de todo PR que
 toque `skills/`.
 
-**Canario funcional**: `./scripts/canary.sh` es meta-QA — prueba que los
+**Canario funcional**: `node scripts/canary.mjs` es meta-QA — prueba que los
 assets de los skills sigan instalables y funcionales (compilan bajo TS
 estricto, el lint agentic dispara donde debe). Corre local antes de un PR
-grande y automático en CI (workflow `canario-ecosistema`) ante cambios en
-`skills/`, `contracts/`, `scripts/` o `canary/`.
+grande y automático en CI (workflow `canario-ecosistema`, matriz `ubuntu-latest`
++ `windows-latest`) ante cambios en `skills/`, `contracts/`, `scripts/` o
+`canary/` — el mismo workflow también corre un smoke de instalación (`--copy`)
++ `check-drift` en ambos sistemas operativos.
 
 **Cómo versionar un cambio a un skill**:
 1. Editar el skill correspondiente en `skills/<nombre>/`.
