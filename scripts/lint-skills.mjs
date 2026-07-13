@@ -12,7 +12,7 @@ const requeridos = [];
 for (const dir of skills) {
   const ruta = join(root, dir, 'SKILL.md');
   if (!existsSync(ruta)) { errores.push(`${dir}: falta SKILL.md`); continue; }
-  const texto = readFileSync(ruta, 'utf8');
+  const texto = readFileSync(ruta, 'utf8').replace(/\r\n/g, '\n');
   const fm = texto.match(/^---\n([\s\S]*?)\n---/);
   if (!fm) { errores.push(`${dir}: sin frontmatter`); continue; }
   const meta = fm[1];
