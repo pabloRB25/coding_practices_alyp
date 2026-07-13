@@ -167,7 +167,7 @@ requisitos para usar `alyp-new-project` — ver la sección siguiente).
 |---|---|---|
 | `node >= 20.11` | Correr el instalador (`scripts/install.mjs`), `scripts/check-drift.mjs` y la meta-QA (`scripts/lint-skills.mjs`, `scripts/canary.mjs`) | Cross-platform: la misma versión de Node sirve en macOS, Linux y Windows. La Vía 1 (plugin) no necesita Node. |
 | **Git for Windows (Git Bash)** — solo Windows | Que la herramienta Bash de Claude Code (usada por los skills que corren `cp`, `grep`, `pnpm`, etc.) funcione | Claude Code usa Git Bash como intérprete de su herramienta Bash si lo detecta instalado; si no lo detecta, cae a PowerShell y los comandos POSIX que los skills invocan fallan. Si tenés Git for Windows instalado pero Claude Code no lo detecta, configurá `CLAUDE_CODE_GIT_BASH_PATH` apuntando al `bash.exe` en `settings.json`. |
-| **Python 3** (`python` o `python3` en el PATH) — solo si usás `alyp-token-savings` | Correr la statusline de contexto y el hook `context-guard` | Opcional: si el instalador (Vía 2) no encuentra Python 3, cablea el resto de la instalación igual y avisa que saltea el statusline/hook — no falla la instalación completa. |
+| **Python 3** (`python`, `py` o `python3` en el PATH) — solo si usás `alyp-token-savings` | Correr la statusline de contexto y el hook `context-guard` | Opcional: si el instalador (Vía 2) no encuentra Python 3, cablea el resto de la instalación igual y avisa que saltea el statusline/hook — no falla la instalación completa. |
 
 Nota de rutas en Windows: `~/.claude` es `%USERPROFILE%\.claude` (típicamente
 `C:\Users\<usuario>\.claude`). Todos los ejemplos de este documento que muestran

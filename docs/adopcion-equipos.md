@@ -64,7 +64,7 @@ en `standards.yaml`, en la raíz del repo (ver `contracts/standards.example.yaml
 como plantilla). Ejemplo mínimo:
 
 ```yaml
-ecosistema: 2.0.0
+ecosistema: 2.1.0
 perfil: next-supabase-vercel
 estandares:
   code-standard: v1                           # sello en CLAUDE.md: agentic-standard: v1

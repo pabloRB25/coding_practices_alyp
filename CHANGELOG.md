@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.1.0 — 2026-07-06
+
+### Soporte cross-platform (macOS · Linux · Windows)
+
+- Instalador reescrito en Node (`scripts/install.mjs`) — reemplaza el bash; junctions sin admin en Windows, merge de `settings.json` en Node puro (sin dependencia de `python3`), detección de intérprete de Python para token-savings. `install.sh`/`install.ps1` quedan como shims.
+- `check-drift.mjs` y `canary.mjs` portados a Node (cross-platform); shims `.sh` conservados.
+- CI canario en matriz `ubuntu-latest` + `windows-latest` con smoke de instalación real.
+- token-savings 1.0.1: hook usa tempdir portable (no `/tmp`); intérprete tolerante `python`/`python3`.
+- Docs: vía plugin elevada como #1 cross-platform; requisitos por plataforma (Node ≥ 20.11; Git for Windows para la herramienta Bash; Python 3 opcional para token-savings).
+- Boundary documentado: instalación y meta-QA 100% cross-platform; el uso de skills con shell POSIX requiere Git Bash en Windows (requisito de Claude Code).
+
 ## v2.0.0 — 2026-07-06 (en curso)
 
 ### El repo pasa a ser fuente de verdad + instalador
