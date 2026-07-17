@@ -1,12 +1,12 @@
 ---
 name: devstral-orchestration
-version: 2.7.1
+version: 2.7.2
 provides: [orchestration]
 description: >
-  Protocolo de orquestación multi-modelo v2.7.1 de Claude Code para Alyp Studio — Opus orquesta SIEMPRE, Fable es consultor de invocación explícita, offloading local OBLIGATORIO. El orquestador Opus (loop principal) rutea entre 6 roles: orquestador Opus, consultor Fable (invocación explícita, veredicto ⬆ FABLE), subagentes Opus (razonamiento pesado aislado), subagentes Sonnet (implementador/explorador/revisor), ejecutor local en dos tiers vía delegate_to_devstral (llamable directo por Opus o por Sonnet), y QA local por hooks. Invocar ANTES de orquestar o delegar por primera vez en la sesión, o para interpretar veredictos del hook (✅/⚠/❌/🚨). Versiones anteriores en versions/. Mapeo tier→modelo y límites del entorno en ~/.claude/capacity.yaml (contrato: contracts/orchestration.md).
+  Protocolo de orquestación multi-modelo v2.7.2 de Claude Code para Alyp Studio — Opus orquesta SIEMPRE, Fable es consultor de invocación explícita, offloading local OBLIGATORIO (el tier mecánico exige tool calling estructurado). El orquestador Opus (loop principal) rutea entre 6 roles: orquestador Opus, consultor Fable (invocación explícita, veredicto ⬆ FABLE), subagentes Opus (razonamiento pesado aislado), subagentes Sonnet (implementador/explorador/revisor), ejecutor local en dos tiers vía delegate_to_devstral (llamable directo por Opus o por Sonnet), y QA local por hooks. Invocar ANTES de orquestar o delegar por primera vez en la sesión, o para interpretar veredictos del hook (✅/⚠/❌/🚨). Versiones anteriores en versions/. Mapeo tier→modelo y límites del entorno en ~/.claude/capacity.yaml (contrato: contracts/orchestration.md).
 ---
 
-# Orquestación multi-modelo v2.7.1 — Alyp Studio (Opus orquesta · Fable consulta · offloading obligatorio)
+# Orquestación multi-modelo v2.7.2 — Alyp Studio (Opus orquesta · Fable consulta · offloading obligatorio)
 
 > **Capacity**: los nombres de modelos de este documento son el mapeo ACTUAL de
 > `~/.claude/capacity.yaml` (si no existe: copiá `capacity.example.yaml` de este
@@ -40,6 +40,12 @@ se re-envía cada turno. La regla madre:
    doctrina explícita.
 5. Perfil de ESTE equipo validado y documentado (sección "Perfil del equipo",
    medido 2026-07-16).
+
+**Qué cambió en 2.7.2** (parche de validación, misma doctrina): el tier mecánico
+exige **tool calling estructurado** — requisito nuevo, ver abajo. Se descartó
+`qwen2.5-coder:3b` como ejecutor (0/5 medido: emite la llamada como texto y no
+ejecuta nada, pero el loop lo reporta como éxito) y el `mecanico_light` pasó a
+`qwen3:4b` (4/4, mismo footprint). Cambio de capacity, no de protocolo.
 
 ## ¿Quién orquesta? (leé esto primero)
 
@@ -95,6 +101,23 @@ Quién delega: **el que tiene la subtarea en las manos** — el orquestador Opus
 directo (sin pasar por un Sonnet intermediario si la subtarea ya está
 especificada) o el `implementador` Sonnet en cascada. La supervisión y el QA
 corren en el contexto de quien delegó.
+
+### Requisito duro del tier mecánico: tool calling estructurado
+
+El ejecutor local **debe** emitir `tool_calls` estructurados. Un modelo que
+escupe la llamada como texto en `content` **no ejecuta nada** — y el loop del MCP
+lo interpreta como "terminó" y devuelve `[El ejecutor local completó la tarea]`.
+Resultado: **éxito falso silencioso**, el peor modo de falla posible bajo una
+regla de offloading obligatorio.
+
+- Verificalo con una **llamada real** que devuelva `tool_calls`. **NO alcanza**
+  con `capabilities: [tools]` de `/api/show`: un modelo puede declararlo y
+  fallar igual (medido).
+- Ante la duda, el síntoma es inconfundible: el resumen del ejecutor trae un
+  bloque JSON con `{"name": "write_file", ...}` y el trace de `--- acciones ---`
+  viene **vacío**. Eso es un no-op, no un trabajo hecho: no lo aceptes.
+- Modelos chicos: el tamaño no predice la capacidad. Medido 2026-07-16 en este
+  equipo — `qwen2.5-coder:3b` (1.9 GB) **0/5**; `qwen3:4b` (2.5 GB) **4/4**.
 
 **Únicas excepciones** (todas se agotan antes de saltarse el local):
 - **Gobernador saturado** (ya hay `max_delegaciones_vivas` = 2 delegaciones
@@ -310,10 +333,11 @@ Snapshot medido de ESTA máquina; la fuente de verdad viva es
 
 | Recurso | Valor medido | Implicación operativa |
 |---|---|---|
-| Ejecutor light (mecanico_light) | ~3 GB | Default: 2 delegaciones concurrentes + QA residente, sin presión de SO |
-| Ejecutor heavy (mecanico_heavy, MoE A3B) | ~21 GB | Cabe, pero NO co-reside cómodo: usalo de a UNA delegación y sin la ola local llena |
-| QA hooks | ~3 GB, ~5 s por review | Residente junto al light (`OLLAMA_MAX_LOADED_MODELS=2`) |
-| Camino rápido local | light + QA ≈ 6 GB | Es el modo de paralelismo seguro; el heavy es la excepción razonada |
+| Ejecutor light (mecanico_light) | 2.5 GB · tool calling **4/4** | Default: 2 delegaciones concurrentes + QA residente, sin presión de SO |
+| Ejecutor heavy (mecanico_heavy, MoE A3B) | 18.6 GB disco (~21 GB cargado) · tool calling OK | Opt-in, NO default: co-residente con QA + Claude Code + Chrome **hace paginar el SO** (una QA trepó de 5 s a 167 s). De a UNA delegación |
+| QA hooks | 1.9 GB · ~5 s por review | Residente junto al light (`OLLAMA_MAX_LOADED_MODELS=2`). No necesita tool calling: devuelve prosa |
+| Camino rápido local | light + QA ≈ 4.4 GB | Es el modo de paralelismo seguro; el heavy es la excepción razonada |
+| Descartado como ejecutor | `qwen2.5-coder:3b` · tool calling **0/5** | Emite `write_file` como texto y no ejecuta; el loop lo reporta como éxito. Sirve solo de QA |
 | Ola cloud | 10 subagentes (12 cores → min(16, 12−2)) | Subagentes Opus ≤ 3 por ola |
 | `OLLAMA_NUM_PARALLEL` | 2 | = `local.max_delegaciones_vivas` (gobernador) |
 | `num_ctx` ejecutor | 16384 | KV pre-asignado = NUM_PARALLEL × num_ctx; 32768 inflaba el 30B a 28 GB |

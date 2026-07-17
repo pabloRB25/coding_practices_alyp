@@ -8,8 +8,15 @@ tiers:
   razonador: claude-opus-4-8       # = orquestador; subagentes Opus para análisis aislado
   obrero: claude-sonnet-5          # implementación, research, review normal
   barato: claude-haiku-4-5         # búsquedas amplias, triage; fallback del local saturado
-  mecanico_light: qwen2.5-coder:3b # local default — offloading OBLIGATORIO (null si no hay)
-  mecanico_heavy: qwen3-coder:30b  # local con razonamiento, de a UNA (~21 GB, no co-reside)
+  # REQUISITO DURO del tier mecánico: tool calling ESTRUCTURADO (msg.tool_calls).
+  # Sin él, el ejecutor no escribe nada y reporta éxito igual (falso positivo).
+  # Verificalo con una llamada real; NO alcanza `capabilities: [tools]` de /api/show
+  # (un modelo puede declararlo y aun así emitir la llamada como texto).
+  # Medido en el equipo de referencia 2026-07-16: qwen2.5-coder:3b 0/5 → descartado
+  # como ejecutor; qwen3:4b 4/4 con el mismo footprint (2.5 GB).
+  mecanico_light: qwen3:4b         # local default — offloading OBLIGATORIO (null si no hay)
+  mecanico_heavy: qwen3-coder:30b  # local con razonamiento, de a UNA (~19 GB, pagina el SO)
+  qa: qwen2.5-coder:3b             # QA de hooks: NO necesita tool calling (devuelve prosa)
 local:
   disponible: true                 # false → todo lo mecánico va a `barato` (cloud)
   max_delegaciones_vivas: 2        # = OLLAMA_NUM_PARALLEL; gobernador anti-estampida

@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.2.1 — 2026-07-16
+
+### devstral-orchestration v2.7.2 — el tier mecánico exige tool calling estructurado
+
+Parche de validación sobre v2.7.1 (misma doctrina). Al probar el offloading obligatorio end-to-end se descubrió que el ejecutor light **no ejecutaba nada**: emitía la llamada `write_file` como texto en `content` en vez de `tool_calls` estructurados. El loop de `server.py` (~línea 330: `if not tool_calls: return "[El ejecutor local completó la tarea]"`) lo interpretaba como fin exitoso → **éxito falso silencioso**. Con "offloading obligatorio" como regla dura, ese era el peor modo de falla posible: la regla central de v2.7.1 enrutaba por default a un tier que no hacía nada y reportaba OK.
+
+- **Requisito nuevo en el protocolo**: el tier mecánico DEBE emitir `tool_calls` estructurados. No alcanza con `capabilities: [tools]` de `/api/show` — un modelo puede declararlo y fallar igual (medido). Síntoma inconfundible: resumen con bloque JSON `{"name": "write_file", ...}` + trace `--- acciones ---` vacío = no-op, no aceptar.
+- **`mecanico_light`: `qwen2.5-coder:3b` → `qwen3:4b`**. Medido 2026-07-16 (3 tareas mecánicas directas + 2 delegaciones vía MCP): 3b = **0/5** (1.9 GB), qwen3:4b = **4/4** (2.5 GB). Mismo footprint, camino rápido local ahora ≈ 4.4 GB (mejor que los 6 GB documentados). También verificados OK: gemma4:12b, gpt-oss:20b, qwen3-coder:30b. El 3b queda solo como QA de hooks (no necesita tool calling: devuelve prosa).
+- `capacity.yaml`/example: key nueva `qa`; comentarios con el requisito de tool calling y la medición. El cambio de modelo es de capacity, no de protocolo — como manda el propio contrato.
+- SKILL: sección "Requisito duro del tier mecánico" + tabla "Perfil del equipo" con tamaños reales medidos y la nota de que heavy hace paginar el SO (QA 5 s → 167 s), por lo que sigue siendo opt-in.
+- Fuera de este repo (infra local, sin versionar): `~/local-llm-stack/devstral-mcp/server.py::MODEL_LIGHT` y `ARCHITECTURE.md` actualizados con la medición. **Pendiente**: el falso positivo de `server.py` (no-op reportado como éxito) y el hook `supervise-devstral.py`, que aprueba con "sin archivos escritos detectados" y además no detectó una escritura real del tier heavy.
+
 ## v2.2.0 — 2026-07-16
 
 ### devstral-orchestration v2.7.1 — Opus orquesta, Fable consulta, offloading obligatorio
