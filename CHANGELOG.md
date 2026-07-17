@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.2.2 — 2026-07-16
+
+### Endurecimiento del ejecutor local — el offloading obligatorio deja de tener falsos positivos
+
+Resuelve los defectos de infra que v2.2.1 dejó pendientes (`~/local-llm-stack`, fuera de este repo, sin versionar). Con "offloading obligatorio" como regla dura, un ejecutor que reporta éxito sin hacer nada es inaceptable. Se arreglaron tres bugs, todos verificados con tests:
+
+- **El hook de supervisión estaba ciego (bug de raíz).** `parse_response_text` leía `tool_response.get("content")`, pero el MCP entrega `{"result": "..."}` como **string JSON serializado** → el hook parseaba un texto vacío/incorrecto. Por eso NUNCA detectaba escrituras (ni reales), no disparaba la escalación por tope de iteraciones, y aprobaba ✅ todo. Fix: `parse_response_text` desenvuelve el sobre `{"result": ...}` (str o dict).
+- **Detección de escrituras robusta.** `extract_files_written` ahora ancla en la confirmación real de la tool (`-> OK: escrito {path} ({N} chars)`), que sobrevive al escape de comillas del JSON y al truncado de argumentos a 120 chars (si el modelo mandaba `content` antes que `path`, la ruta se perdía). El parseo de args queda como respaldo. Solo cuenta archivos que existen en disco.
+- **No-op ya no es éxito.** `server.py`: cuando el modelo no emite `tool_calls` con trace vacío, en vez de `[El ejecutor local completó la tarea]` devuelve el marcador `[NO-OP]` con diagnóstico (distingue "emitió la tool call como TEXTO" = tool calling roto, de "respondió sin hacer nada"). El hook detecta `[NO-OP]` y el patrón de tool-call-como-texto en el resumen (nunca en el trace) → nuevo veredicto **🚨 ESCALACIÓN por no-op** que NO re-delega (falla idéntico) y, si es tool calling roto, apunta a revisar `MODEL_LIGHT`.
+- **Tests**: `hooks/test_supervise_parsing.py` (11 casos con la forma REAL del payload: sobre JSON, comillas escapadas, no-op, tool-call-como-texto, read-only legítimo, tope de iteraciones). Verificación E2E por el harness real: heavy y light escriben, el hook detecta y QA cada archivo, veredicto ✅ correcto; la escritura que antes reportaba "sin archivos escritos" ahora se detecta.
+- El MCP recargó y `tier=light` corre `qwen3:4b` (confirmado por `/api/ps`): el offloading obligatorio funciona end-to-end.
+
 ## v2.2.1 — 2026-07-16
 
 ### devstral-orchestration v2.7.2 — el tier mecánico exige tool calling estructurado

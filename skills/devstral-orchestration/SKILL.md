@@ -251,8 +251,15 @@ El hook `supervise-devstral.py` emite un veredicto. Seguí:
 3. **❌ No resuelto en 2 intentos** — no re-delegues; que lo corrija el
    `implementador` Sonnet que lo delegó (o corregí con Edit/Write/Bash si fue
    delegación directa tuya). Verificá que tsc/tests pasen.
-4. **🚨 ESCALACIÓN** (tope de iteraciones) — tomá el trace y completá la tarea
+4. **🚨 ESCALACIÓN por tope de iteraciones** — tomá el trace y completá la tarea
    con tus herramientas. Nunca dejes algo a medias sin avisar al usuario.
+5. **🚨 ESCALACIÓN por NO-OP** — el ejecutor no ejecutó ninguna acción (respondió
+   sin invocar herramientas, o emitió la tool call como texto = tool calling
+   roto). NO re-delegues al mismo ejecutor: falla idéntico. Completá vos, o
+   corregí `MODEL_LIGHT` si el diagnóstico apunta a un modelo sin tool calling.
+   El hook detecta esto anclando en la confirmación real de escritura del trace
+   (`OK: escrito …`), no en promesas del resumen — un "creé el archivo" sin esa
+   confirmación es un no-op, no un trabajo hecho.
 
 ## QA automático en Edit/Write
 
