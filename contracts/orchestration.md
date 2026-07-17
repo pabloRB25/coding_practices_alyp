@@ -1,7 +1,18 @@
-# Contrato: orquestación multi-modelo (v1)
+# Contrato: orquestación multi-modelo (v1.1)
 
 Protocolo agnóstico de modelos concretos. Los 6 roles son TIERS; el mapeo
 tier→modelo y los límites del entorno viven en `capacity.yaml` (por máquina).
+
+## Modo estándar (desde protocolo v2.7)
+
+- **El orquestador (loop principal) es el tier razonador**, con autoridad plena
+  operativa: routing, síntesis, razonamiento pesado y veredicto final.
+- **El tier juez no orquesta**: se ejerce por **invocación explícita** (agente
+  consultor) ante duda real del orquestador o pedido del usuario. Es desempate,
+  no par de programación.
+- **Offloading al mecánico es OBLIGATORIO** cuando la tarea es verificable +
+  inequívoca (y cabe en su contexto). Saltárselo solo lo autorizan el gobernador
+  saturado o el ejecutor local no disponible (→ tier barato).
 
 ## Tiers
 
@@ -18,8 +29,10 @@ tier→modelo y los límites del entorno viven en `capacity.yaml` (por máquina)
 
 1. El contexto del orquestador es el recurso más caro: leé poco, delegá mucho,
    recibí resúmenes.
-2. Al mecánico solo lo verificable + inequívoco. Seguridad nunca baja del razonador
-   y el veredicto nunca baja del juez/orquestador.
+2. Al mecánico solo lo verificable + inequívoco — y TODO lo verificable +
+   inequívoco al mecánico (offloading obligatorio). Seguridad nunca baja del
+   razonador y el veredicto nunca baja del orquestador (que escala al juez
+   explícitamente si duda).
 3. Si dudás del tier, subí uno.
 4. Nunca aceptar trabajo delegado sin resumen/veredicto con evidencia
    (`contracts/evidencia.schema.json`).

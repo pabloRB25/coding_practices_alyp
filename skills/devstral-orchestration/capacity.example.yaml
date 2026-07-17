@@ -1,14 +1,15 @@
 # capacity.yaml — perfil de capacidad del ENTORNO (máquina/equipo), no doctrina.
 # Instalar como ~/.claude/capacity.yaml y ajustar. El protocolo (SKILL.md) habla
 # de tiers; este archivo dice qué modelo y qué límites tiene CADA tier en TU entorno.
-version: 1
+version: 2                         # v2 = doctrina v2.7.1: Opus orquesta SIEMPRE
+orquestador: claude-opus-4-8       # loop principal (modo estándar del equipo)
 tiers:
-  juez: claude-fable-5             # veredicto final, consultor
-  razonador: claude-opus-4-8       # seguridad crítica, arquitectura, juez adversarial
+  juez: claude-fable-5             # SOLO vía agente `consultor` (invocación explícita)
+  razonador: claude-opus-4-8       # = orquestador; subagentes Opus para análisis aislado
   obrero: claude-sonnet-5          # implementación, research, review normal
-  barato: claude-haiku-4-5         # búsquedas amplias, triage de logs
-  mecanico_light: qwen2.5-coder:3b # local default (null si no hay ejecutor local)
-  mecanico_heavy: qwen3-coder:30b  # local con razonamiento (null si no aplica)
+  barato: claude-haiku-4-5         # búsquedas amplias, triage; fallback del local saturado
+  mecanico_light: qwen2.5-coder:3b # local default — offloading OBLIGATORIO (null si no hay)
+  mecanico_heavy: qwen3-coder:30b  # local con razonamiento, de a UNA (~21 GB, no co-reside)
 local:
   disponible: true                 # false → todo lo mecánico va a `barato` (cloud)
   max_delegaciones_vivas: 2        # = OLLAMA_NUM_PARALLEL; gobernador anti-estampida

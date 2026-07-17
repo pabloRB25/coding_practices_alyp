@@ -1,12 +1,12 @@
 ---
 name: devstral-orchestration
-version: 2.6.0
+version: 2.7.1
 provides: [orchestration]
 description: >
-  Protocolo de orquestación multi-modelo v2.6 de Claude Code para Alyp Studio — dual Fable/Opus. El orquestador (Fable u Opus, auto-detectado) rutea entre 6 roles: orquestador, consultor Fable (escalación por duda del modo Opus, veredicto ⬆ FABLE), subagentes Opus (razonamiento pesado), subagentes Sonnet (implementador/explorador/revisor), ejecutor local en dos tiers (qwen2.5-coder:3b light / qwen3-coder:30b heavy) vía delegate_to_devstral, y QA qwen2.5-coder:3b. Invocar ANTES de orquestar o delegar por primera vez en la sesión, o para interpretar veredictos del hook (✅/⚠/❌/🚨). Versiones anteriores en versions/. Mapeo tier→modelo y límites del entorno en ~/.claude/capacity.yaml (contrato: contracts/orchestration.md).
+  Protocolo de orquestación multi-modelo v2.7.1 de Claude Code para Alyp Studio — Opus orquesta SIEMPRE, Fable es consultor de invocación explícita, offloading local OBLIGATORIO. El orquestador Opus (loop principal) rutea entre 6 roles: orquestador Opus, consultor Fable (invocación explícita, veredicto ⬆ FABLE), subagentes Opus (razonamiento pesado aislado), subagentes Sonnet (implementador/explorador/revisor), ejecutor local en dos tiers vía delegate_to_devstral (llamable directo por Opus o por Sonnet), y QA local por hooks. Invocar ANTES de orquestar o delegar por primera vez en la sesión, o para interpretar veredictos del hook (✅/⚠/❌/🚨). Versiones anteriores en versions/. Mapeo tier→modelo y límites del entorno en ~/.claude/capacity.yaml (contrato: contracts/orchestration.md).
 ---
 
-# Orquestación multi-modelo v2.6 — Alyp Studio (tiers + capacity)
+# Orquestación multi-modelo v2.7.1 — Alyp Studio (Opus orquesta · Fable consulta · offloading obligatorio)
 
 > **Capacity**: los nombres de modelos de este documento son el mapeo ACTUAL de
 > `~/.claude/capacity.yaml` (si no existe: copiá `capacity.example.yaml` de este
@@ -14,28 +14,32 @@ description: >
 > ver `contracts/orchestration.md`. Cambia un modelo → se edita capacity.yaml,
 > no este protocolo.
 
-Objetivo: **máxima calidad al menor costo de tokens**. El costo dominante no es
-qué modelo trabaja, sino cuánto contexto acumula el orquestador — que en v2.5
-es **el modelo del loop principal: Fable u Opus** (ver "¿Quién orquesta?").
-Su contexto es el más caro que acumulás en la sesión. Cada lectura/edición/salida se re-envía cada turno.
-La regla madre se endurece:
+Objetivo: **máxima calidad al menor costo de tokens, usando TODOS los tiers
+disponibles**. El costo dominante no es qué modelo trabaja, sino cuánto contexto
+acumula el orquestador — que en v2.7 es **siempre Opus** (ver "¿Quién orquesta?").
+Su contexto es el más caro que acumulás en la sesión: cada lectura/edición/salida
+se re-envía cada turno. La regla madre:
 
-> **Delegá hacia abajo TODO lo delegable y mantené tu contexto de orquestador mínimo:
-> leé poco, delegá mucho, recibí resúmenes.** Cada subagente o delegación local
-> aísla su propio contexto — solo vuelve el resumen. En v2 hasta el razonamiento
-> pesado se delega (a Opus); vos retenés el routing y el veredicto final.
+> **Delegá hacia abajo TODO lo delegable y mantené tu contexto de orquestador
+> mínimo: leé poco, delegá mucho, recibí resúmenes.** Cada subagente o delegación
+> local aísla su propio contexto — solo vuelve el resumen. Vos retenés routing,
+> síntesis y veredicto. Y hacia abajo del todo: **si el ejecutor local puede
+> hacerlo, el ejecutor local LO HACE** (ver "Offloading obligatorio").
 
-**Qué cambió vs v1**: en v1 el orquestador era Opus y hacía inline todo lo
-crítico (seguridad, arquitectura, review final) porque no había nivel superior.
-En v2 existe un tier por encima: el análisis profundo baja a subagentes Opus
-con contexto aislado, y Fable retiene solo **decisión, síntesis y aprobación**.
-Resultado: el contexto más caro acumula aún menos.
-
-**Qué cambió vs v2 (→ v2.5)**: el orquestador ya no es necesariamente Fable —
-Fable u Opus pueden serlo (sección "¿Quién orquesta?"). Cuando orquesta Opus,
-tiene autoridad plena y un canal de escalación por duda: el agente `consultor`
-(`model: "fable"`), que devuelve veredictos `⬆ FABLE` desde contexto aislado.
-Spec: `coding_practices_alyp/docs/specs/2026-07-03-orquestacion-v2.5-design.md`.
+**Qué cambió vs v2.6 (→ v2.7.1)**:
+1. **Se elimina la dualidad Fable/Opus**: el orquestador es **SIEMPRE Opus**,
+   con autoridad plena. El "Modo Opus" de v2.5-v2.6 pasa a ser EL modo.
+2. **Fable ya no orquesta**: existe únicamente como agente `consultor`
+   (`model: "fable"`), de **invocación explícita** — el orquestador lo llama
+   cuando duda de verdad o cuando el usuario lo pide; nunca es implícito.
+3. **Offloading local OBLIGATORIO**: si una subtarea es ejecutable por el tier
+   local, VA al local. Deja de ser una optimización opcional (la vieja regla
+   "para velocidad pura, el local es opcional" queda derogada).
+4. **El local es llamable DIRECTO** por el orquestador Opus (delegación directa)
+   y por el `implementador` Sonnet (cascada). Ya era así en tooling; ahora es
+   doctrina explícita.
+5. Perfil de ESTE equipo validado y documentado (sección "Perfil del equipo",
+   medido 2026-07-16).
 
 ## ¿Quién orquesta? (leé esto primero)
 
@@ -45,113 +49,135 @@ sos el orquestador: ignorá las secciones de orquestación de este skill. Solo t
 aplican la cascada local (`delegate_to_devstral` y su gobernador) y el estándar
 de evidencia.
 
-**Detección de identidad**: tu system prompt declara qué modelo sos ("You are
-powered by …"). Ramificá:
+**El modo estándar de este equipo es: Opus orquesta.** Tu system prompt declara
+qué modelo sos ("You are powered by …"). Ramificá:
 
 | Sos | Modo | Reglas |
 |---|---|---|
-| **Fable** | Clásico | Todo este skill tal cual. Sos el techo: no existe escalación para vos; la sección "Modo Opus" no te aplica. |
-| **Opus** | Opus | Todo este skill + la sección "Modo Opus": autoridad plena, `consultor` Fable como escalación por duda. |
-| **Otro** (Sonnet, Haiku, …) | Degradado | Avisale al usuario UNA vez ("el protocolo asume Fable u Opus como orquestador") y orquestá con las reglas del Modo Opus, pero la consulta al `consultor` es OBLIGATORIA (no por duda) para: seguridad crítica, acciones irreversibles y diseño de arquitectura. El criterio pesado nunca queda en el tier obrero. |
+| **Opus** | **Estándar** | Todo este skill tal cual. Autoridad plena: routing, razonamiento pesado (inline o delegado a subagentes Opus) y veredicto final. El `consultor` Fable es tu único nivel superior, por invocación explícita. |
+| **Fable** | Excepcional | El usuario te eligió como loop a mano. Orquestá con este skill igual, pero el `consultor` NO aplica (sos el techo — no te consultes a vos mismo). Avisá UNA vez que el modo estándar del equipo es Opus (`/model claude-opus-4-8`). |
+| **Otro** (Sonnet, Haiku, …) | Degradado | Avisá UNA vez ("el protocolo asume Opus como orquestador") y orquestá con este skill, pero la consulta al `consultor` es OBLIGATORIA (no por duda) para: seguridad crítica, acciones irreversibles y diseño de arquitectura. El criterio pesado nunca queda en el tier obrero. |
 
 ## Los 6 roles
 
 | Nivel | Modelo | Rol |
 |---|---|---|
-| **Orquestador (tier juez)** | **Fable u Opus (vos, el loop principal)** | Routing, descomposición de planes, síntesis de resultados, resolución de ambigüedad con el usuario, **aprobación final** de seguridad crítica y de merge/prod. Trabajo inline solo cuando delegar cuesta más que hacerlo (cambios de <5 min, decisiones de 1 línea). |
-| **Consultor (tier juez)** | **Fable (agente `consultor`, `model: "fable"`)** | Escalación del orquestador en Modo Opus (por duda) o Degradado (obligatoria en crítico): destraba, decide y arbitra UNA consulta puntual desde contexto aislado. Devuelve veredicto `⬆ FABLE`. No aplica cuando orquesta Fable. |
-| **Razonador** | **Opus (subagentes, `model: "opus"` en la tool Agent)** | Razonamiento pesado delegado: análisis de seguridad crítica (borrador — vos aprobás), diseño de arquitectura detallado a partir de tu spec, debugging endiablado, juez adversarial de evidencia, review final pre-prod (borrador). |
-| **Obrero** | **Sonnet (subagentes, default de los agentes)** | Implementación, research, debugging normal, review no-crítico, verificación en browser |
-| **Mecánico** | **Local (`delegate_to_devstral`), por niveles** | Tareas mecánicas, verificables e inequívocas. **`tier="light"` (qwen2.5-coder:3b) = default rápido** (~6 GB con el QA, sin presión de SO); `tier="heavy"` (30B) solo para mecánico-con-razonamiento — pesa ~21 GB, no co-reside cómodo. **Alternativa cloud: `model: "haiku"`** cuando Ollama está apagado/saturado o cuando importa wall-clock (ver scheduler). |
-| **QA (qa-automático)** | **qwen2.5-coder:3b (hooks)** | Veredicto automático tras Edit/Write y tras cada delegación. Modelo chico → residente junto al ejecutor, sin swap |
+| **Orquestador (tier razonador+juez operativo)** | **Opus (vos, el loop principal — SIEMPRE)** | Routing, descomposición de planes, síntesis de resultados, resolución de ambigüedad con el usuario, razonamiento pesado (inline o delegado), **veredicto final** de seguridad crítica y de merge/prod. Trabajo inline solo cuando delegar cuesta más que hacerlo (cambios de <5 min, decisiones de 1 línea). |
+| **Consultor (tier juez supremo)** | **Fable (agente `consultor`, `model: "fable"`)** | **Invocación explícita**: el orquestador lo llama ante duda real (señales abajo) o a pedido del usuario. Destraba, decide y arbitra UNA consulta puntual desde contexto aislado, con paquete cerrado. Devuelve veredicto `⬆ FABLE`. Es el recurso más caro del sistema: desempate, no par de programación. |
+| **Razonador delegado** | **Opus (subagentes, `model: "opus"` en la tool Agent)** | Razonamiento pesado que conviene AISLAR del contexto del loop: análisis de seguridad crítica (borrador — vos aprobás), diseño de arquitectura detallado a partir de tu spec, debugging endiablado, juez adversarial de evidencia, review final pre-prod (borrador). |
+| **Obrero** | **Sonnet (subagentes, default de los agentes)** | Implementación, research, debugging normal, review no-crítico, verificación en browser. **Cascada obligatoria**: delega a su vez lo mecánico al local. |
+| **Mecánico** | **Local (`delegate_to_devstral`) — OBLIGATORIO cuando puede** | Tareas mecánicas, verificables e inequívocas. **`tier="light"` (mecanico_light) = default rápido**; `tier="heavy"` (mecanico_heavy) solo para mecánico-con-razonamiento (en este equipo no co-reside cómodo — ver Perfil). Lo llama DIRECTO el orquestador Opus o el Sonnet que tenga la subtarea. Fallback cloud: `model: "haiku"` SOLO si Ollama está apagado o el gobernador saturado. |
+| **QA (qa-automático)** | **mecanico_light (hooks)** | Veredicto automático tras Edit/Write y tras cada delegación. Modelo chico → residente junto al ejecutor, sin swap. |
 
 Los agentes `implementador`/`explorador`/`revisor` declaran `model: sonnet` en
 su frontmatter, pero **el parámetro `model` de la tool Agent lo sobreescribe por
 despacho**: el mismo `revisor` despachado con `model: "opus"` es tu revisor de
 seguridad; el mismo `explorador` con `model: "haiku"` es un buscador barato.
-Un solo set de agentes, tres precios.
+Un solo set de agentes, tres precios. El `consultor` es fijo `model: "fable"`.
+
+## Offloading obligatorio (regla dura de v2.7)
+
+> **Si el ejecutor local PUEDE ejecutar la subtarea, la subtarea VA al local.**
+> No delegar al local algo delegable es una violación del protocolo, no una
+> preferencia de estilo.
+
+"Puede ejecutar" se decide con dos preguntas:
+
+1. **¿Es mecánica + verificable mecánicamente + spec inequívoco?** (test pasa,
+   tsc limpio, lint limpio) → `tier="light"`. Ejemplos: tests unitarios,
+   codemods, CRUD por template, fixes tsc/lint, JSDoc, schemas Zod desde
+   ejemplos, boilerplate, renames/extracts multi-archivo.
+2. **¿Es mecánica pero exige algo de razonamiento acotado?** (refactor con
+   decisiones locales, transformación con casos borde enumerables) →
+   `tier="heavy"`, de a UNA (no co-reside cómodo en este equipo).
+
+Quién delega: **el que tiene la subtarea en las manos** — el orquestador Opus
+directo (sin pasar por un Sonnet intermediario si la subtarea ya está
+especificada) o el `implementador` Sonnet en cascada. La supervisión y el QA
+corren en el contexto de quien delegó.
+
+**Únicas excepciones** (todas se agotan antes de saltarse el local):
+- **Gobernador saturado** (ya hay `max_delegaciones_vivas` = 2 delegaciones
+  locales vivas) Y hay urgencia real de wall-clock → `model: "haiku"`.
+- **Ollama apagado / modelo sin descargar** (`[QA local no disponible]` o error
+  del MCP) → `model: "haiku"` y avisá UNA vez.
+- **El contexto necesario excede `num_ctx` (16384)** o el spec es ambiguo →
+  no es ejecutable por el local: va a Sonnet (mecánico + ambiguo → Sonnet).
+- **Seguridad/secretos/infra/irreversibles**: nunca fueron delegables al local
+  y siguen sin serlo.
 
 ## Matriz de routing
 
-> Las filas "Fable (vos)" y "→ Fable aprueba" asumen el modo clásico. **En Modo
-> Opus el aprobador sos vos-Opus** (autoridad plena; consultor si dudás) — ver
-> "Modo Opus".
-
 | Tarea | Nivel |
 |---|---|
-| Routing, descomposición del plan en subtareas | **Fable (vos)** |
-| Resolución de ambigüedad de requisitos (con el usuario) | **Fable (vos)** |
-| **Veredicto final** de seguridad crítica, merge a prod, cambios irreversibles | **Fable (vos)** — podés pedir borrador a Opus, la firma es tuya |
-| Síntesis e integración de resultados de subagentes | **Fable (vos)** |
-| Análisis de seguridad crítica: auth, JWT/sesión, RLS, secretos, pagos, PII, trust boundaries, middleware de acceso | **Opus** (`revisor` con `model:"opus"`) → Fable aprueba |
-| Diseño de arquitectura detallado desde tu spec de alto nivel | **Opus** (`model:"opus"`) → Fable aprueba |
-| Debugging difícil (heisenbug, race, cross-system) | **Opus** (`implementador` con `model:"opus"`) |
-| Juez adversarial de evidencia / review final pre-prod (borrador) | **Opus** (`revisor` con `model:"opus"`) |
-| Implementación de feature multi-archivo con lógica no trivial | **Sonnet** (`implementador`) |
+| Routing, descomposición del plan en subtareas | **Opus (vos)** |
+| Resolución de ambigüedad de requisitos (con el usuario) | **Opus (vos)** |
+| **Veredicto final** de seguridad crítica, merge a prod, cambios irreversibles | **Opus (vos)** — podés pedir borrador a un subagente Opus; la firma es tuya |
+| Síntesis e integración de resultados de subagentes | **Opus (vos)** |
+| Análisis de seguridad crítica: auth, JWT/sesión, RLS, secretos, pagos, PII, trust boundaries, middleware de acceso | **Subagente Opus** (`revisor` con `model:"opus"`) → vos aprobás |
+| Diseño de arquitectura detallado desde tu spec de alto nivel | **Subagente Opus** (`model:"opus"`) → vos aprobás |
+| Debugging difícil (heisenbug, race, cross-system) | **Subagente Opus** (`implementador` con `model:"opus"`) |
+| Juez adversarial de evidencia / review final pre-prod (borrador) | **Subagente Opus** (`revisor` con `model:"opus"`) |
+| Implementación de feature multi-archivo con lógica no trivial | **Sonnet** (`implementador`) — con cascada local obligatoria |
 | Research / mapeo del codebase / convenciones | **Sonnet** (`explorador`) |
 | Debugging con razonamiento normal | **Sonnet** (`implementador`) |
 | Code review de cambios no-críticos | **Sonnet** (`revisor`) |
 | Verificación en browser (chrome-devtools) | **Sonnet** (`implementador`) |
 | Búsquedas amplias baratas, triage de logs, resúmenes de archivos | **Haiku** (`explorador` con `model:"haiku"`) |
-| Tests unitarios, codemods, fixes de tsc/lint mecánicos | **Qwen local** (o Haiku si Ollama saturado) |
-| CRUD/feature por template (assets de `alyp-agentic-standards`) | **Qwen local** |
-| JSDoc, secciones de README, schemas Zod desde ejemplos | **Qwen local** |
-| Boilerplate, scaffolding, refactor mecánico (rename/extract) multi-archivo | **Qwen local** |
-| Escalación por duda del orquestador Opus / arbitraje que Opus no cierra | **Consultor Fable** (`consultor`) — solo Modo Opus/Degradado |
+| Tests unitarios, codemods, fixes de tsc/lint mecánicos | **Local light** (OBLIGATORIO; Haiku solo por excepción del gobernador) |
+| CRUD/feature por template (assets de `alyp-agentic-standards`) | **Local light** |
+| JSDoc, secciones de README, schemas Zod desde ejemplos | **Local light** |
+| Boilerplate, scaffolding, refactor mecánico (rename/extract) multi-archivo | **Local light** (heavy si exige razonamiento acotado, de a una) |
+| Duda real del orquestador / arbitraje que no cerrás / pedido del usuario | **Consultor Fable** (`consultor`) — invocación explícita |
 
 ## Principios de routing
 
-1. **Al local solo lo verificable + inequívoco.** Una sub-tarea va al ejecutor
-   local únicamente si su éxito se comprueba mecánicamente (test pasa, tsc
-   limpio, lint limpio) Y el spec no es ambiguo. Mecánico + ambiguo → Sonnet.
+1. **Offloading obligatorio hacia el local** (sección propia, arriba). El local
+   primero; el cloud barato es la excepción documentada, no la alternativa cómoda.
 2. **Seguridad crítica nunca baja de Opus, y el veredicto nunca baja del
    orquestador.** Un subagente Opus puede analizar auth/RLS/pagos y proponer;
-   la aprobación y cualquier cambio irreversible (migración destructiva,
-   deploy prod, borrado) los decidís vos, con el usuario cuando corresponda.
-   (En Modo Opus el veredicto es tuyo; si dudás, escalá al `consultor` — ver
-   "Modo Opus".)
+   la aprobación y cualquier cambio irreversible (migración destructiva, deploy
+   prod, borrado) los decidís vos, con el usuario cuando corresponda. Si dudás,
+   escalá al `consultor` — explícitamente.
 3. **Si dudás del nivel, subí uno.** El costo de un error supera el ahorro.
-4. **Opus es caro y lento: despachalo con spec, no con exploración.** Antes de
-   un subagente Opus, un `explorador` (Sonnet/Haiku) junta el contexto; Opus
-   recibe scope exacto + evidencia y devuelve análisis, no paseos por el repo.
-5. **Cascada**: un subagente Sonnet puede a su vez delegar lo mecánico al local.
-   El QA y la supervisión corren en el contexto de quien edita, no en el tuyo.
+4. **Los subagentes Opus son caros y lentos: despachalos con spec, no con
+   exploración.** Antes de un subagente Opus, un `explorador` (Sonnet/Haiku)
+   junta el contexto; Opus recibe scope exacto + evidencia y devuelve análisis,
+   no paseos por el repo.
+5. **Cascada**: un subagente Sonnet delega a su vez lo mecánico al local (misma
+   regla de offloading obligatorio). El QA y la supervisión corren en el
+   contexto de quien edita, no en el tuyo.
 6. **No degrades tu turno a proxy.** Si te descubrís leyendo archivos completos
    o iterando ediciones inline en una tarea delegable, pará y despachá.
 
-## Modo Opus — diferencias vs el modo clásico
+## Consultor Fable — invocación explícita
 
-Aplica solo si detectaste que sos Opus (o como base del modo Degradado). Son
-CUATRO diferencias; todo lo demás del skill rige igual.
+Fable no orquesta ni aparece solo: **lo llamás vos**, como agente `consultor`,
+cuando se cumple una señal de duda real o el usuario lo pide. Señales (guía,
+no gate):
 
-1. **El razonador sos vos.** Las filas "Opus" de la matriz podés ejecutarlas
-   inline (si tu contexto ya tiene lo necesario) o despachar subagentes Opus
-   (si conviene aislar contexto). El resto de la matriz no cambia.
-2. **Autoridad plena, escalación por duda.** Decidís todo — incluidos
-   seguridad crítica e irreversibles. Consultás al `consultor` SOLO cuando
-   dudás. Señales de duda (guía, no gate):
-   - 2 intentos fallidos sobre el mismo problema (espejo del ⚠ N/2 local);
-   - evidencia contradictoria o insuficiente ante una acción irreversible;
-   - conflicto entre veredictos de subagentes;
-   - decisión de arquitectura con trade-offs que no lográs cerrar;
-   - el `revisor` marcó `🔴 ESCALAR` y tu propio análisis no alcanza.
-3. **Disciplina de despacho al consultor (regla dura).** Nunca escales con
-   exploración: el paquete lleva scope exacto + evidencia anclada
-   (`archivo:línea`, diffs, salidas de comando) + la pregunta decidible + las
-   opciones que ya consideraste. Si falta evidencia, primero un `explorador`
-   la junta. Una consulta = una pregunta. El consultor es el recurso más caro
-   del sistema: desempate, no par de programación.
-4. **La cadena sigue siendo de a un nivel.** Tus subagentes no escalan a
-   Fable: escalan a vos vía su resumen final, y vos decidís si consultás.
+- 2 intentos fallidos sobre el mismo problema (espejo del ⚠ N/2 local);
+- evidencia contradictoria o insuficiente ante una acción irreversible;
+- conflicto entre veredictos de subagentes;
+- decisión de arquitectura con trade-offs que no lográs cerrar;
+- el `revisor` marcó `🔴 ESCALAR` y tu propio análisis no alcanza;
+- el usuario pidió explícitamente "consultá a Fable".
+
+**Disciplina de despacho (regla dura).** Nunca escales con exploración: el
+paquete lleva scope exacto + evidencia anclada (`archivo:línea`, diffs, salidas
+de comando) + la pregunta decidible + las opciones que ya consideraste. Si falta
+evidencia, primero un `explorador` la junta. Una consulta = una pregunta.
+
+**La cadena es de a un nivel.** Tus subagentes no escalan a Fable: escalan a
+vos vía su resumen final, y vos decidís si consultás.
 
 **Prohibido**: consultas headless a Fable vía `claude -p` desde Bash — costo
-invisible y sin supervisión. La única vía de escalación es el agente
-`consultor`.
+invisible y sin supervisión. La única vía es el agente `consultor`.
 
 ## Reglas de descomposición de planes (estándar ralph)
 
-Cuando generes un plan/spec con subtareas (vos en Fable, o vía `writing-plans`),
-cada subtarea debe poder correr **desatendida y ser juzgable**. Reglas duras:
+Cuando generes un plan/spec con subtareas (vos, o vía `writing-plans`), cada
+subtarea debe poder correr **desatendida y ser juzgable**. Reglas duras:
 
 1. **Concreta y verificable, nunca cualitativa.** ❌ "mejorar la calidad" →
    ✅ "el endpoint `/healthz` responde 200 en < 300 ms bajo `scripts/load_healthz.sh`".
@@ -165,24 +191,24 @@ cada subtarea debe poder correr **desatendida y ser juzgable**. Reglas duras:
    salida de comando, screenshot de browser), no un "listo". Es el insumo que el
    `revisor`/juez exige para dar un veredicto positivo.
 4. **Esfuerzo declarado por bloque.** Anotá qué nivel del routing corresponde a
-   cada bloque (Fable / Opus / Sonnet / Haiku / local-light / local-heavy), para
-   no decidirlo a ojo en caliente: scaffold/boilerplate → local-light; tests y
-   features normales → Sonnet/local; razonamiento difícil, seguridad y el juez →
-   Opus; veredicto y síntesis → Fable.
+   cada bloque (Opus / Sonnet / Haiku / local-light / local-heavy / consultor),
+   para no decidirlo a ojo en caliente: scaffold/boilerplate/tests mecánicos →
+   local-light SIEMPRE; features normales → Sonnet (+cascada local); razonamiento
+   difícil, seguridad y el juez adversarial → subagente Opus; veredicto y
+   síntesis → vos; desempate → consultor.
 
 ## Despachar subagentes (tool Agent)
 
 - `implementador` — implementa features/cambios siguiendo el estándar Alyp;
-  delega lo mecánico al local. Dale plan + alcance + criterio de verificación.
+  **cascada local obligatoria** para lo mecánico. Dale plan + alcance + criterio
+  de verificación.
 - `explorador` — research read-only; devuelve `archivo:línea`, no volcados.
 - `revisor` — review no-crítico; escala lo de seguridad crítica como `🔴 ESCALAR`
-  (que en v2 vos re-despachás a un `revisor` con `model:"opus"` y aprobás).
-- `consultor` — SOLO en Modo Opus/Degradado: consulta puntual al tier Fable.
-  Despachalo con paquete cerrado (scope + evidencia anclada + pregunta
-  decidible + opciones consideradas); devuelve `⬆ FABLE — VEREDICTO`.
-- **Override de modelo por despacho**: `model: "opus"` para las filas Opus de la
-  matriz, `model: "haiku"` para búsquedas/triage baratos, `model: "fable"` es el
-  default del `consultor`. Sin override = Sonnet.
+  (que vos re-despachás a un `revisor` con `model:"opus"` y aprobás).
+- `consultor` — invocación explícita al tier Fable (sección propia, arriba).
+- **Override de modelo por despacho**: `model: "opus"` para las filas de
+  razonamiento pesado de la matriz, `model: "haiku"` para búsquedas/triage
+  baratos. Sin override = Sonnet. El `consultor` es fijo `model: "fable"`.
 
 Despachá varios en paralelo (un solo mensaje con varias tool calls) cuando las
 tareas son independientes. Cada agente devuelve un resumen; vos integrás y
@@ -207,14 +233,14 @@ El hook `supervise-devstral.py` emite un veredicto. Seguí:
 
 ## QA automático en Edit/Write
 
-`qa-review.py` revisa con qwen2.5-coder:3b tras cada edición:
+`qa-review.py` revisa con el modelo QA local tras cada edición:
 - **QA OK** — continuá.
 - **Issues** — críticos (bugs/seguridad) se corrigen antes de seguir; menores se
   notifican y se sigue si no bloquean. El QA chico genera falsos positivos
   (race conditions inexistentes, "faltan tests" en scripts personales): evaluá,
   no apliques a ciegas.
 - `[QA local no disponible]` = Ollama apagado o modelo sin descargar; no es error
-  de tu trabajo. Avisá una vez y continuá.
+  de tu trabajo. Avisá una vez, aplicá la excepción de offloading (Haiku) y seguí.
 
 ## Reglas generales
 
@@ -222,16 +248,15 @@ El hook `supervise-devstral.py` emite un veredicto. Seguí:
 - Un subagente Opus también rinde cuentas: pedile evidencia anclada
   (`archivo:línea`, test, salida de comando) igual que al `revisor`.
 - El nombre `delegate_to_devstral` y los archivos `*devstral*` se conservan por
-  compatibilidad (settings/permisos); el modelo ejecutor es Qwen3-Coder.
+  compatibilidad (settings/permisos); el modelo ejecutor real es el de capacity.yaml.
 - Límites del entorno (RAM, tiers locales, delegaciones concurrentes, tamaño de ola):
   en `~/.claude/capacity.yaml`. Los valores medidos de ESTA máquina están en
-  `~/local-llm-stack/ARCHITECTURE.md`. Regla portable: default al tier light local;
-  heavy solo con razonamiento mecánico, asumiendo que no co-reside cómodo.
+  `~/local-llm-stack/ARCHITECTURE.md` y resumidos abajo en "Perfil del equipo".
 
-## Optimización de velocidad — scheduler de 2 carriles + mezcla de tiers
+## Scheduler de 2 carriles — paralelismo sin bloquear el equipo
 
-Objetivo: **máxima velocidad de ejecución en paralelo en todos los modos**, sin
-que un carril ahogue al otro. Cloud y local usan cómputo distinto (infra de
+Objetivo: **máxima velocidad de ejecución en paralelo**, sin que un carril ahogue
+al otro y sin bloquear la máquina. Cloud y local usan cómputo distinto (infra de
 Anthropic vs tu RAM) → **se solapan gratis**; el truco es saturar ambos a la vez.
 
 ```
@@ -250,44 +275,52 @@ en cloud, no en tus cores). Maximizá unidades independientes y el resto se acom
 
 1. **Descomponé al grano más fino independiente** (por archivo / módulo de test /
    dimensión de review). Ese es el techo del paralelismo.
-2. **Clasificá cada unidad → carril y tier:** razonamiento pesado → Opus;
-   ambigua o con lógica → Sonnet; búsqueda/triage barato → Haiku; mecánica +
-   verificable + inequívoca → local (`light` default, `heavy` solo con
-   razonamiento).
+2. **Clasificá cada unidad → carril y tier:** mecánica + verificable + inequívoca
+   → local (OBLIGATORIO; `light` default, `heavy` solo con razonamiento y de a
+   una); razonamiento pesado → subagente Opus; ambigua o con lógica → Sonnet;
+   búsqueda/triage barato → Haiku.
 3. **Dispará todos los carriles a la vez,** no secuencialmente. Ola cloud (hasta
    10 tool calls `Agent` en UN mensaje, mezclando tiers) + cola local en
    paralelo. Se solapan.
-4. **Dosificá Opus dentro de la ola:** los subagentes Opus son los más lentos y
-   caros del carril cloud y ocupan slots igual que los Sonnet. Máximo 2-3 por
-   ola; el resto Sonnet/Haiku. Si una ola es toda-Opus, tu wall-clock es el de
-   Opus.
+4. **Dosificá los subagentes Opus dentro de la ola:** son los más lentos y caros
+   del carril cloud y ocupan slots igual que los Sonnet. Máximo 2-3 por ola; el
+   resto Sonnet/Haiku. Si una ola es toda-Opus, tu wall-clock es el de Opus.
 5. **🚨 GOBERNADOR anti-estampida (regla dura):** hay UN solo Ollama. **Nunca
    permitas más de `OLLAMA_NUM_PARALLEL` (=2) delegaciones locales vivas a la
    vez.** Si 10 agentes cloud delegan al local en simultáneo → cola de 10 =
-   desastre. Mitigá: solo 1-2 agentes designados usan local; el resto hace lo
-   mecánico inline o lo mandás a Haiku.
+   desastre. Mitigá: designá qué 1-2 agentes de la ola usan local en cada
+   momento; los demás encolan su parte mecánica para la siguiente tanda o —
+   solo si hay urgencia real de wall-clock — aplican la excepción Haiku.
+   El gobernador es la única válvula que autoriza saltarse el offloading.
 6. **`pipeline()` no `parallel()`** en Workflow: sin barrera, el ítem A se
    verifica mientras B implementa. Wall-clock = cadena más lenta, no la suma.
    Fijá `model`/`effort` por etapa (verify en Opus/high, mecánica en Haiku/low).
 7. **Pre-scout una vez:** un `explorador` mapea → N `implementadores` reciben
-   scope exacto, sin pagar exploración cada uno. Vale doble para Opus (principio 4).
-8. **Para velocidad pura, el local es opcional:** delegar al único Ollama
-   serializa; si lo que importa es wall-clock (no ahorro de tokens ni
-   privacidad), mandá lo mecánico a Haiku o dejá que el Sonnet lo haga inline,
-   y reservá el local para cuando el carril cloud ya está saturado a 10.
+   scope exacto, sin pagar exploración cada uno. Vale doble para los subagentes
+   Opus (principio 4).
+8. **El offloading no se sacrifica por velocidad.** La vieja regla "para
+   velocidad pura, el local es opcional" queda DEROGADA: el local va primero
+   siempre que pueda ejecutar la tarea; la presión de wall-clock se maneja con
+   el gobernador y la excepción Haiku, no ignorando el carril local.
 
-### Config de paralelismo (Ollama) — ya aplicada y persistida
+## Perfil del equipo (validado 2026-07-16 — M3 Pro · 36 GB · 12 cores)
 
-| Variable | Valor | Por qué |
+Snapshot medido de ESTA máquina; la fuente de verdad viva es
+`~/.claude/capacity.yaml` + `~/local-llm-stack/ARCHITECTURE.md`.
+
+| Recurso | Valor medido | Implicación operativa |
 |---|---|---|
-| `OLLAMA_MAX_LOADED_MODELS` | `2` | ejecutor + QA residentes a la vez |
-| `OLLAMA_NUM_PARALLEL` | `2` | 2 requests concurrentes por modelo; >2 infla el KV del 30B y rompe la coexistencia |
-| `OLLAMA_FLASH_ATTENTION` | `1` | reduce KV-cache → entran más slots |
-| `num_ctx` ejecutor | `16384` | Ollama pre-asigna KV = `NUM_PARALLEL × num_ctx`; 32768 inflaba el 30B a 28 GB |
+| Ejecutor light (mecanico_light) | ~3 GB | Default: 2 delegaciones concurrentes + QA residente, sin presión de SO |
+| Ejecutor heavy (mecanico_heavy, MoE A3B) | ~21 GB | Cabe, pero NO co-reside cómodo: usalo de a UNA delegación y sin la ola local llena |
+| QA hooks | ~3 GB, ~5 s por review | Residente junto al light (`OLLAMA_MAX_LOADED_MODELS=2`) |
+| Camino rápido local | light + QA ≈ 6 GB | Es el modo de paralelismo seguro; el heavy es la excepción razonada |
+| Ola cloud | 10 subagentes (12 cores → min(16, 12−2)) | Subagentes Opus ≤ 3 por ola |
+| `OLLAMA_NUM_PARALLEL` | 2 | = `local.max_delegaciones_vivas` (gobernador) |
+| `num_ctx` ejecutor | 16384 | KV pre-asignado = NUM_PARALLEL × num_ctx; 32768 inflaba el 30B a 28 GB |
 
-Estos valores son la instancia local de capacity.yaml (local.max_delegaciones_vivas = OLLAMA_NUM_PARALLEL).
-
-Persistido en `~/Library/LaunchAgents/com.alyp.ollama-env.plist` (RunAtLoad).
+Config persistida en `~/Library/LaunchAgents/com.alyp.ollama-env.plist`
+(RunAtLoad): `OLLAMA_MAX_LOADED_MODELS=2`, `OLLAMA_NUM_PARALLEL=2`,
+`OLLAMA_FLASH_ATTENTION=1`.
 
 ## Archivos (debugging)
 
@@ -296,5 +329,6 @@ Persistido en `~/Library/LaunchAgents/com.alyp.ollama-env.plist` (RunAtLoad).
 - Env de paralelismo: `~/Library/LaunchAgents/com.alyp.ollama-env.plist`
 - Subagentes: `~/.claude/agents/{implementador,explorador,revisor,consultor}.md`
 - Arquitectura completa: `~/local-llm-stack/ARCHITECTURE.md`
-- **Versiones anteriores**: `versions/v1/` (orquestador Opus, pre-Fable) y
-  `versions/v2/` (orquestador solo-Fable, 5 niveles)
+- **Versiones anteriores**: `versions/v1/` (orquestador Opus, pre-Fable),
+  `versions/v2/` (orquestador solo-Fable, 5 niveles), `versions/v2.5/`
+  (dual Fable/Opus) y `versions/v2.6/` (dual + capacity.yaml)

@@ -1,6 +1,6 @@
 ---
 name: consultor
-description: Consultor Fable — el tier más alto del sistema, despachado como subagente para destrabar, decidir o arbitrar UNA consulta puntual. Lo despacha un orquestador Opus (escalación por duda) o un orquestador degradado (consulta obligatoria en seguridad crítica, irreversibles y arquitectura). No revisa diffs (eso es del revisor): recibe un paquete cerrado (scope + evidencia + pregunta decidible + opciones consideradas) y devuelve un veredicto accionable con formato fijo ⬆ FABLE.
+description: Consultor Fable — el tier más alto del sistema y la ÚNICA vía de acceso a Fable (v2.7.1), despachado como subagente para destrabar, decidir o arbitrar UNA consulta puntual. Lo invoca EXPLÍCITAMENTE el orquestador Opus (ante duda real o pedido del usuario) o un orquestador degradado (consulta obligatoria en seguridad crítica, irreversibles y arquitectura). No revisa diffs (eso es del revisor): recibe un paquete cerrado (scope + evidencia + pregunta decidible + opciones consideradas) y devuelve un veredicto accionable con formato fijo ⬆ FABLE.
 tools: Read, Grep, Glob, Bash
 model: fable
 ---

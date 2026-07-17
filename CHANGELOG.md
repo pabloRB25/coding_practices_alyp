@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.2.0 — 2026-07-16
+
+### devstral-orchestration v2.7.1 — Opus orquesta, Fable consulta, offloading obligatorio
+
+- **Doctrina nueva**: se elimina la dualidad Fable/Opus de v2.5-v2.6. El orquestador es **SIEMPRE Opus** (autoridad plena); Fable existe únicamente como agente `consultor` de **invocación explícita** (duda real o pedido del usuario). Fallbacks: Fable como loop orquesta igual sin consultor (es el techo); Sonnet/Haiku = modo degradado con consulta obligatoria en crítico.
+- **Offloading local OBLIGATORIO**: toda subtarea mecánica + verificable + inequívoca VA al ejecutor local (light default; heavy de a una). Queda derogada la regla v2.6 "para velocidad pura, el local es opcional". Excepciones únicas: gobernador saturado (→ haiku), Ollama apagado (→ haiku), contexto > num_ctx o spec ambiguo (→ sonnet). El local es llamable directo por el orquestador Opus y por el implementador Sonnet (cascada).
+- **Perfil del equipo** documentado en el SKILL (validado 2026-07-16, M3 Pro 36 GB/12c): light+QA ≈ 6 GB = camino de paralelismo seguro (2 delegaciones vivas), heavy ~21 GB no co-reside; ola cloud = 10, subagentes Opus ≤ 3/ola.
+- `capacity.yaml` → **version 2**: nueva key `orquestador` + comentarios de roles v2.7.1 (mismas keys de tiers, sin breaking).
+- `contracts/orchestration.md` → **v1.1**: sección "Modo estándar (desde protocolo v2.7)" + invariante 2 endurecido (offloading obligatorio, escalación explícita al juez).
+- Agentes `implementador`/`explorador`/`revisor`/`consultor` alineados: el que despacha es el orquestador Opus; cascada local obligatoria en el implementador; consultor = única vía de acceso a Fable. Se quitan modelos locales hardcodeados de las descripciones (fuente: capacity.yaml).
+- CLAUDE.md global unificado a v2.7.1 (resuelve el drift v2.5 detectado el 2026-07-16): índice sin modelos hardcodeados, puntero a capacity.yaml.
+- v2.6 archivada en `skills/devstral-orchestration/versions/v2.6/`.
+
 ## v2.1.0 — 2026-07-06
 
 ### Soporte cross-platform (macOS · Linux · Windows)
