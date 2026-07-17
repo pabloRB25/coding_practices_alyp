@@ -333,11 +333,16 @@ Snapshot medido de ESTA máquina; la fuente de verdad viva es
 
 | Recurso | Valor medido | Implicación operativa |
 |---|---|---|
-| Ejecutor light (mecanico_light) | 2.5 GB · tool calling **4/4** | Default: 2 delegaciones concurrentes + QA residente, sin presión de SO |
-| Ejecutor heavy (mecanico_heavy, MoE A3B) | 18.6 GB disco (~21 GB cargado) · tool calling OK | Opt-in, NO default: co-residente con QA + Claude Code + Chrome **hace paginar el SO** (una QA trepó de 5 s a 167 s). De a UNA delegación |
-| QA hooks | 1.9 GB · ~5 s por review | Residente junto al light (`OLLAMA_MAX_LOADED_MODELS=2`). No necesita tool calling: devuelve prosa |
-| Camino rápido local | light + QA ≈ 4.4 GB | Es el modo de paralelismo seguro; el heavy es la excepción razonada |
+| Ejecutor light (mecanico_light) | 2.5 GB disco · **5.1 GB cargado** · tool calling **4/4** | Default: 2 delegaciones concurrentes + QA residente, sin presión de SO |
+| Ejecutor heavy (mecanico_heavy, MoE A3B) | 18.6 GB disco · ~21 GB cargado · tool calling OK | Opt-in, NO default: co-residente con QA + Claude Code + Chrome **hace paginar el SO** (una QA trepó de 5 s a 167 s). De a UNA delegación |
+| QA hooks | 1.9 GB disco · **2.7 GB cargado** · ~5 s por review | Residente junto al light (`OLLAMA_MAX_LOADED_MODELS=2`). No necesita tool calling: devuelve prosa |
+| Camino rápido local | light + QA ≈ **7.8 GB residentes** (de 36 GB) | Es el modo de paralelismo seguro; el heavy es la excepción razonada |
 | Descartado como ejecutor | `qwen2.5-coder:3b` · tool calling **0/5** | Emite `write_file` como texto y no ejecuta; el loop lo reporta como éxito. Sirve solo de QA |
+
+> **Ojo con las unidades**: Ollama pre-asigna KV al cargar (`NUM_PARALLEL × num_ctx`),
+> así que el footprint residente es bastante mayor que el tamaño en disco
+> (`qwen3:4b`: 2.5 GB en disco → 5.1 GB cargado). Para presupuestar RAM usá
+> **siempre** `/api/ps` (cargado), nunca `/api/tags` (disco).
 | Ola cloud | 10 subagentes (12 cores → min(16, 12−2)) | Subagentes Opus ≤ 3 por ola |
 | `OLLAMA_NUM_PARALLEL` | 2 | = `local.max_delegaciones_vivas` (gobernador) |
 | `num_ctx` ejecutor | 16384 | KV pre-asignado = NUM_PARALLEL × num_ctx; 32768 inflaba el 30B a 28 GB |
