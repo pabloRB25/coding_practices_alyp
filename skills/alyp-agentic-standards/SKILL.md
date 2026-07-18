@@ -140,6 +140,8 @@ Agregar a la config de ESLint del proyecto las reglas de `assets/templates/eslin
 
 Copiar `assets/templates/new-feature.mjs` a `scripts/new-feature.mjs` **tal cual, sin reemplazos** — crea el scaffold de una feature nueva en un comando, más un stub de migración SQL con RLS (referencia del stub: `assets/templates/migration_add_dominio.sql`) e imprime el runbook.
 
+Migraciones sobre DB con datos de producción: seguir `references/migraciones-datos-vivos.md` (expand → migrate → contract).
+
 Agregar a `package.json` el script de `assets/templates/package.scripts.new-feature.json`.
 
 **Uso**:
