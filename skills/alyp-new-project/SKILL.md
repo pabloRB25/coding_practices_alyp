@@ -30,6 +30,20 @@ Cada fase tiene su detalle completo en `references/fase-NN-<nombre>.md` — leer
 
 **Criterio general:** Si dudás, actuá directo. No avances de fase si su gate de salida falla.
 
+**Las decisiones 2 y 3 (`USE_TURBOREPO`, `USE_MULTITENANCY`) son decisiones de
+arquitectura de una vía** (baseline §02, regla de reversibilidad): cada una
+produce su ADR fundacional en `docs/adr/` del proyecto nuevo (0001-monorepo,
+0002-tenancy), con el formato del skill `architecture-standards`. Si el
+proyecto nace con un componente con forma legítima de servicio (escalado
+propio, equipo autónomo, límite duro), la separación se decide acá y deja ADR
+— no se difiere a una reescritura futura.
+
+**Frontera con `agentic-project-plan-exec-v1`**: ese skill genera la capa de
+context-docs para agentes (AGENTS.md/CLAUDE.md/context/); este skill genera la
+plataforma (repo+CI+Supabase+Vercel). En un proyecto nuevo Alyp corre PRIMERO
+este skill; los context-docs se completan con plan-exec si el cliente los pide.
+Ninguno reescribe el output del otro.
+
 ---
 
 ## Índice de FASES

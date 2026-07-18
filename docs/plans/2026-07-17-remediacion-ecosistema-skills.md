@@ -12,6 +12,8 @@
 
 **Tech Stack:** Markdown · git (branch + PR a `develop`) · symlinks `~/.claude` · RTK para todo comando.
 
+> **Revisión 2026-07-17b (ajustes de robustez, sin cambio de alcance):** tras verificar las premisas contra disco se afinó el plan: (1) T0.1 pasa la aserción de checklists de igualdad exacta (`== 10`) a `≥ 10` y documenta los conteos reales del HTML fuente (58 MUST); (2) T5.2 ahora enumera y convierte **todas** las copias de `no-autoejecutar-planes.md` en `~/.claude/projects/*/memory/`, no solo la de Desktop; (3) el gate final se desdobla: las Olas 0–4 se revisan en el PR de la rama y la Ola 5 (fuera de git) obtiene un checkpoint de diff explícito antes de aplicarse; (4) T0.2 fija de antemano que el fallback no bloquea la Ola 0; (5) T2.1 confirma la versión real antes de snapshotear; (6) T5.3 exige identificar el mecanismo de remoción por ítem antes de preguntar. La Regla #0 y el alcance no cambian.
+
 ## Global Constraints
 
 - **Regla #0**: nada de este plan se ejecuta sin visto bueno explícito. La ejecución, cuando se apruebe, tampoco toca plataformas (no deploys, no branch protection): solo archivos + PR.
@@ -43,7 +45,7 @@
 | `skills/alyp-maestro/SKILL.md` (+ plantilla `especificar`) | Modificar/Crear | 4 |
 | `guides/remediacion-legacy.md` | Crear | 4 |
 | `~/.claude/CLAUDE.md` (fuera del repo) | Modificar | 5 |
-| `~/.claude/projects/-Users-parb-Desktop/memory/no-autoejecutar-planes.md` | Modificar (→ puntero) | 5 |
+| `~/.claude/projects/*/memory/no-autoejecutar-planes.md` (todas las copias) | Modificar (→ puntero) | 5 |
 | Catálogo de plugins/skills duplicados | Desinstalar (con confirmación por ítem) | 5 |
 | Skill `architecture-standards` en claude.ai | Actualizar (manual, usuario) | 6 |
 
@@ -62,7 +64,7 @@ Dependencias entre olas: `0 → (1, 2, 3, 4)` · `5` independiente salvo 5.1 · 
 **Interfaces:**
 - Produces: contrato normativo genérico con las 12 secciones (00 cómo usar … 12 fuentes), etiquetas RFC 2119 y los checklists por capa. Toda tarea posterior que diga "baseline" apunta a este archivo con anchors `#NN-<slug>` (ej. `#02-arquitectura`, `#11-definition-of-done`).
 
-- [ ] **Step 1: Convertir HTML → markdown** (mecánico → candidato a ejecutor local tier light). Preservar: numeración de secciones, etiquetas **MUST/SHOULD/MAY** en negrita al inicio de cada regla, los 10 checklists "Checklist — <capa>" como listas `- [ ]`, y la sección Fuentes. Eliminar: markup de UI (contadores "0 de 0", acordeones ▼).
+- [ ] **Step 1: Convertir HTML → markdown** (mecánico → candidato a ejecutor local tier light). Preservar: numeración de secciones, etiquetas **MUST/SHOULD/MAY** en negrita al inicio de cada regla, los checklists "Checklist — <capa>" (uno por capa) como listas `- [ ]`, y la sección Fuentes. Eliminar: markup de UI (contadores "0 de 0", acordeones ▼). Nota de premisa (verificado 2026-07-17 sobre el HTML fuente): 58 `MUST`, 38 `SHOULD`, 7 `MAY`, y 13 ocurrencias del string "Checklist" (índice + prosa + encabezados); tras la conversión los encabezados canónicos "Checklist — <capa>" deben ser ≥ 10 — no una igualdad exacta.
 - [ ] **Step 2: Encabezado del contrato.** Añadir al inicio:
 
 ```markdown
@@ -82,9 +84,9 @@ next·supabase·vercel. No son dos definiciones: una implementa a la otra.
 
 - [ ] **Step 3: Verificar estáticamente.**
 
-Run: `rtk grep -c "MUST" contracts/engineering-baseline.md` → Expected: ≥ 40
+Run: `rtk grep -c "MUST" contracts/engineering-baseline.md` → Expected: ≥ 40 (el HTML fuente tiene 58; margen para pérdidas de conversión)
 Run: `rtk grep -n "^## 02" contracts/engineering-baseline.md` → Expected: 1 match (sección Arquitectura)
-Run: `rtk grep -c "Checklist —" contracts/engineering-baseline.md` → Expected: 10
+Run: `rtk grep -c "Checklist —" contracts/engineering-baseline.md` → Expected: ≥ 10 (uno por capa; NO igualdad exacta — el conteo depende de la conversión)
 
 - [ ] **Step 4: Commit** — `feat(contracts): engineering-baseline v1 (línea base genérica RFC 2119)`
 
@@ -99,7 +101,7 @@ Run: `rtk grep -c "Checklist —" contracts/engineering-baseline.md` → Expecte
 - Consumes: `contracts/engineering-baseline.md#02-arquitectura` (Task 0.1).
 - Produces: skill invocable por cualquier agente local; convención `docs/adr/NNNN-<slug>.md`; formato de ADR que consumen Tasks 3.3, 4.1 y los agentes (Ola 1).
 
-- [ ] **Step 1: Obtener el contenido canónico.** Preferente: el usuario exporta el skill desde claude.ai (Update skill → download) y se usan sus `SKILL.md` + `references/architecture.md` tal cual. Fallback si no hay export: reconstruir desde `engineering-baseline.md#02` + la doctrina ya validada con Rafael (ver Step 2, que es normativo en ambos casos).
+- [ ] **Step 1: Obtener el contenido canónico.** Preferente: el usuario exporta el skill desde claude.ai (Update skill → download) y se usan sus `SKILL.md` + `references/architecture.md` tal cual. Fallback si no hay export: reconstruir desde `engineering-baseline.md#02` + la doctrina ya validada con Rafael (ver Step 2, que es normativo en ambos casos). **Regla anti-bloqueo (decidida de antemano):** la Ola 0 NO espera al export humano — si el export no está disponible al arrancar, se usa el fallback y la reconciliación repo↔claude.ai queda diferida a Task 6.1 (el repo es fuente de verdad). El export solo se usa si ya está a mano.
 - [ ] **Step 2: Asegurar que `SKILL.md` contenga (agregar si el export no lo trae):**
 
 ```markdown
@@ -308,6 +310,7 @@ El transporte de evidencia entre agentes usa `contracts/evidencia.schema.json`.
 - Modify: `skills/devstral-orchestration/SKILL.md` (versión → 2.8.0)
 
 - [ ] **Step 1: Snapshot.** Run: `mkdir -p skills/devstral-orchestration/versions/v2.7.2 && cp skills/devstral-orchestration/SKILL.md skills/devstral-orchestration/versions/v2.7.2/`
+  - Nota (hueco preexistente, no lo arregla este plan): `versions/` hoy tiene v1, v2, v2.5, v2.6 — faltan snapshots de v2.7/v2.7.1. El snapshot captura el estado ACTUAL del SKILL.md (v2.7.2 según git) bajo ese nombre; no reconstruir versiones intermedias. Antes de copiar, confirmar la versión real: `rtk grep -n "^version:" skills/devstral-orchestration/SKILL.md` y nombrar el dir según ese valor si difiere de 2.7.2.
 - [ ] **Step 2: Bump de versión** en frontmatter (`version: 2.8.0`) y título; añadir al changelog interno del skill: "v2.8: carriles por tamaño, routing de review, precisión de offloading de tests, spec-review por riesgo, referencia a contracts/execution.md".
 - [ ] **Step 3: Añadir sección "Carriles por tamaño de trabajo":**
 
@@ -614,11 +617,16 @@ con su propio visto bueno — nunca un efecto colateral de otra tarea.
 ### Task 5.2: Desduplicar la Regla #0 + fronteras de memoria
 
 **Files:**
-- Modify: `~/.claude/projects/-Users-parb-Desktop/memory/no-autoejecutar-planes.md` (→ puntero)
+- Modify: **todas** las copias de `~/.claude/projects/*/memory/no-autoejecutar-planes.md` (→ puntero). Hay al menos dos directorios de proyecto con memoria propia (p.ej. `-Users-parb-Desktop/` y `-Users-parb-Dev-alyp-studio-coding-practices-alyp/`); una sesión abierta sobre cualquier proyecto puede haber generado su copia local. La de Desktop está confirmada (existe, 1.3K).
 - Modify: `~/.claude/CLAUDE.md` (añadir tabla de fronteras, dentro de la sección de la Task 5.1)
 - Engram: actualizar la observación de la regla para que remita a CLAUDE.md como canónica (via mem_update, en ejecución)
 
-- [ ] **Step 1: Reescribir la memoria file-based como puntero:**
+- [ ] **Step 0: Enumerar todas las copias ANTES de reescribir** (no asumir que solo está la de Desktop):
+
+Run: `ls -1 ~/.claude/projects/*/memory/no-autoejecutar-planes.md 2>/dev/null`
+→ Convertir a puntero CADA archivo listado (Step 1 se aplica a todos). Si aparece una copia en el directorio de memoria de ESTE mismo proyecto (`-Users-parb-Dev-alyp-studio-coding-practices-alyp`), también se convierte.
+
+- [ ] **Step 1: Reescribir cada memoria file-based como puntero** (mismo contenido en todas):
 
 ```markdown
 ---
@@ -645,7 +653,7 @@ Regla #0 (planificar NO es ejecutar): redacción canónica y completa en
 Las demás copias de una regla son punteros, nunca redacciones paralelas.
 ```
 
-- [ ] **Step 3: Verificar.** Run: `rtk grep -c "PUNTERO" ~/.claude/projects/-Users-parb-Desktop/memory/no-autoejecutar-planes.md` → Expected: 1
+- [ ] **Step 3: Verificar (todas las copias).** Run: `rtk grep -lc "PUNTERO" ~/.claude/projects/*/memory/no-autoejecutar-planes.md` → Expected: cada archivo listado en Step 0 aparece con 1 match; ninguna copia queda con la redacción completa de la Regla #0.
 
 ### Task 5.3: Purga del catálogo de skills duplicados
 
@@ -663,8 +671,9 @@ Las demás copias de una regla son punteros, nunca redacciones paralelas.
 | `meeting-minutes` vs `minutas-panda-valentina` | genérica + especializada solo si aporta formato | consolidar |
 | `productivity:memory-management` | fronteras de Task 5.2 | desactivar |
 
-- [ ] **Step 2:** Ejecutar solo lo confirmado (comandos `claude plugin remove` / edición del catálogo según corresponda al mecanismo de cada uno).
-- [ ] **Step 3: Verificar.** El listado de skills de una sesión nueva ya no muestra los ítems removidos.
+- [ ] **Step 1b: Identificar el MECANISMO de remoción por ítem ANTES de preguntar** (no mezclar en la ejecución). Cada duplicado se remueve por una vía distinta y no intercambiable — determinar y anotar cuál aplica a cada uno: `claude plugin remove <plugin>` (plugins instalados), edición del catálogo/marketplace del plugin, desactivación en settings, o borrado de directorio de skill. Un ítem sin mecanismo claro NO se toca: se reporta al usuario como "sin vía de remoción identificada".
+- [ ] **Step 2:** Ejecutar solo lo confirmado, ítem por ítem, cada uno con el mecanismo ya identificado en Step 1b. Reversible: anotar cómo se reinstala cada ítem removido (para el rollback del plan).
+- [ ] **Step 3: Verificar.** El listado de skills de una sesión nueva ya no muestra los ítems removidos, y ningún flujo mapeado quedó sin su skill.
 
 ---
 
@@ -692,10 +701,13 @@ Las demás copias de una regla son punteros, nunca redacciones paralelas.
 | 2 (protocolo) | `implementador`; snapshot manual del orquestador ANTES | `revisor` **opus** (protocolo vivo) | secuencial |
 | 3 (estándares) | `implementador` | `revisor` | T3.1–T3.3 en paralelo |
 | 4 (specs/guías) | `implementador` | `revisor` | T4.1–T4.2 en paralelo |
-| 5 (CLAUDE.md/memoria/purga) | orquestador directo (archivos fuera del repo + confirmaciones ítem a ítem) | inspección del usuario | secuencial |
+| 5 (CLAUDE.md/memoria/purga) | orquestador directo (archivos fuera del repo + confirmaciones ítem a ítem) | **checkpoint explícito de diff** (ver gate) — NO cae en el PR de la rama | secuencial |
 | 6 (claude.ai) | **usuario** (manual) | — | — |
 
-**Gate final:** diff completo de la rama → `revisor` model opus (checklists del propio engineering-baseline recién creado: el plan se audita con su producto) → PR `plan/remediacion-ecosistema-skills` → `develop` → visto bueno del usuario para merge.
+**Gate final (dos superficies, porque la Ola 5 no vive en la rama):**
+
+1. **Dentro del repo** (Olas 0–4): diff completo de la rama → `revisor` model opus (checklists del propio engineering-baseline recién creado: el plan se audita con su producto) → PR `plan/remediacion-ecosistema-skills` → `develop` → visto bueno del usuario para merge.
+2. **Fuera del repo** (Ola 5 — CLAUDE.md global, punteros de memoria, purga de catálogo): estos cambios NO aparecen en el diff de la rama, así que tienen su propio checkpoint ANTES de aplicarse. El orquestador presenta al usuario, para aprobación explícita: (a) el `diff -u` de `~/.claude/CLAUDE.md` contra su `.bak-2026-07-17`; (b) el before/after de cada `no-autoejecutar-planes.md` convertido a puntero; (c) la lista final de ítems a purgar con su mecanismo de remoción (Task 5.3, Step 1b). Nada de la Ola 5 se aplica sin ese OK — es el equivalente al review de PR para lo que escapa a git.
 
 **Rollback:** todo vive en la rama hasta el merge; CLAUDE.md global tiene backup (`.bak-2026-07-17`); devstral-orchestration tiene snapshot v2.7.2; la purga de catálogo es reversible reinstalando.
 

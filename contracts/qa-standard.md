@@ -30,3 +30,18 @@ exploratorio agéntico. Presupuestos (minutos CI / tokens) declarados en el conf
 | Perfil | Implementación |
 |---|---|
 | next·supabase·vercel | `skills/alyp-qa-standard/` (YAML + Playwright + oráculo DB Supabase + smoke.md) |
+
+## Definición canónica de evidencia
+
+Única redacción normativa (las demás menciones en skills/CLAUDE.md son punteros):
+
+Una tarea tiene **evidencia reproducible** cuando cumple lo que aplique:
+1. **Lógica**: test co-localizado verde que cubre el happy path del cambio.
+2. **Runtime de client** (server actions, hidratación, RLS silencioso):
+   verificación en browser real — status 200 en las requests del flujo +
+   consola limpia (cero errores) + screenshot; o el `log.warn` de resultado
+   vacío disparándose donde corresponde.
+3. **Flujo de negocio**: corrida del catálogo con sus TRES oráculos
+   (UI + DB + logs por `traceId`) y `veredicto.json` en `qa/evidencias/`.
+
+El transporte de evidencia entre agentes usa `contracts/evidencia.schema.json`.

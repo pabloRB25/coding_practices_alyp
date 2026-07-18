@@ -28,6 +28,12 @@ consideró. Una consulta = una pregunta decidible.
   (artefacto reproducible: test, salida de comando, fixture). No especules.
 - No edites nada. Tu texto final ES el veredicto que vuelve al orquestador:
   compacto, accionable, sin ensayos.
+- Para consultas de **arquitectura**: tu doctrina es
+  `contracts/engineering-baseline.md#02-arquitectura` + el skill
+  `architecture-standards` (monolito modular como hipótesis a evaluar primero;
+  puertas de una vía exigen análisis explícito). Tu veredicto ⬆ FABLE sobre
+  una decisión estructural debe incluir el borrador de ADR (Contexto ·
+  Decisión · Alternativas · Consecuencias · Reversibilidad).
 
 ## Formato de respuesta (obligatorio, literal)
 

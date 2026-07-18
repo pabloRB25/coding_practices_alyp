@@ -22,6 +22,8 @@ Optimiza el ciclo del agente: **LEER → ENTENDER → CAMBIAR → VERIFICAR**.
 
 **Contrato**: este skill es el perfil **next·supabase·vercel** del contrato
 `contracts/code-standard.md` (invariantes I1–I9). Ante conflicto, el contrato manda.
+Además del contrato propio, este perfil implementa la línea base genérica
+`contracts/engineering-baseline.md`.
 
 **Principio**: lo que abarata cada paso del ciclo sube la tasa de éxito y baja el consumo de tokens.
 
@@ -71,6 +73,12 @@ En Turborepo, agregar al `turbo.json` las tareas de `assets/templates/turbo.veri
 
 "Parece correcto" sin alguna de las dos no es done — es **no-evaluable**. Es la misma regla que aplica el agente `revisor`/juez: sin evidencia recolectable y determinista, el veredicto no es positivo.
 
+Esta definición IMPLEMENTA, para el perfil next·supabase·vercel, los
+checklists de Definition of Done de `contracts/engineering-baseline.md`.
+No son dos definiciones: ante duda, el baseline es el mínimo y esto lo concreta.
+La redacción canónica de "evidencia" vive en `contracts/qa-standard.md`
+("Definición canónica de evidencia") — este texto es un puntero.
+
 ## FASE 3 — Arquitectura por features
 
 ### 3.1 Estructura base
@@ -96,6 +104,15 @@ src/
 
 Regla de naming: **`<feature>.<rol>.ts`** — siempre, sin excepciones.
 El patrón uniforme es lo que el agente aprende una vez y replica sin error.
+
+**Idioma (excepción declarada al baseline §08)**: el baseline pide "un solo
+idioma para identificadores". El perfil Alyp lo implementa como regla dual
+consciente: **dominio de negocio en español** (features, tablas, códigos de
+error, logs — `agenticLogger`, `contexto`, `traceId` como término técnico) y
+**vocabulario técnico en inglés** (patrones de archivo: queries/actions/
+controller/schema). La frontera es el nombre del dominio: `features/aguinaldos/
+aguinaldos.queries.ts`. Declarar esta excepción en el `standards.yaml` de cada
+repo (manifest, regla 2).
 
 ### 3.2–3.4 Plantillas por archivo
 
@@ -123,6 +140,8 @@ Agregar a la config de ESLint del proyecto las reglas de `assets/templates/eslin
 
 Copiar `assets/templates/new-feature.mjs` a `scripts/new-feature.mjs` **tal cual, sin reemplazos** — crea el scaffold de una feature nueva en un comando, más un stub de migración SQL con RLS (referencia del stub: `assets/templates/migration_add_dominio.sql`) e imprime el runbook.
 
+Migraciones sobre DB con datos de producción: seguir `references/migraciones-datos-vivos.md` (expand → migrate → contract).
+
 Agregar a `package.json` el script de `assets/templates/package.scripts.new-feature.json`.
 
 **Uso**:
@@ -130,6 +149,11 @@ Agregar a `package.json` el script de `assets/templates/package.scripts.new-feat
 pnpm new-feature inventario
 # → crea src/features/inventario/ con los 6 archivos base
 ```
+
+**TDD y el generador**: el scaffold es código generado (excepción TDD
+declarada — no re-negociar por sesión). El ciclo rojo-verde empieza en el
+PRIMER cambio de comportamiento sobre el scaffold: test rojo en
+`<dominio>.test.ts` antes de tocar queries/actions/controller.
 
 ## FASE 6 — Vitest (testing co-localizado)
 

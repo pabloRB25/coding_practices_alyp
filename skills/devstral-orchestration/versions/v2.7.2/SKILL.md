@@ -1,12 +1,12 @@
 ---
 name: devstral-orchestration
-version: 2.8.0
+version: 2.7.2
 provides: [orchestration]
 description: >
-  Protocolo de orquestación multi-modelo v2.8 de Claude Code para Alyp Studio — Opus orquesta SIEMPRE, Fable es consultor de invocación explícita, offloading local OBLIGATORIO (el tier mecánico exige tool calling estructurado). El orquestador Opus (loop principal) rutea entre 6 roles: orquestador Opus, consultor Fable (invocación explícita, veredicto ⬆ FABLE), subagentes Opus (razonamiento pesado aislado), subagentes Sonnet (implementador/explorador/revisor), ejecutor local en dos tiers vía delegate_to_devstral (llamable directo por Opus o por Sonnet), y QA local por hooks. Invocar ANTES de orquestar o delegar por primera vez en la sesión, o para interpretar veredictos del hook (✅/⚠/❌/🚨). Versiones anteriores en versions/. Mapeo tier→modelo y límites del entorno en ~/.claude/capacity.yaml (contrato: contracts/orchestration.md).
+  Protocolo de orquestación multi-modelo v2.7.2 de Claude Code para Alyp Studio — Opus orquesta SIEMPRE, Fable es consultor de invocación explícita, offloading local OBLIGATORIO (el tier mecánico exige tool calling estructurado). El orquestador Opus (loop principal) rutea entre 6 roles: orquestador Opus, consultor Fable (invocación explícita, veredicto ⬆ FABLE), subagentes Opus (razonamiento pesado aislado), subagentes Sonnet (implementador/explorador/revisor), ejecutor local en dos tiers vía delegate_to_devstral (llamable directo por Opus o por Sonnet), y QA local por hooks. Invocar ANTES de orquestar o delegar por primera vez en la sesión, o para interpretar veredictos del hook (✅/⚠/❌/🚨). Versiones anteriores en versions/. Mapeo tier→modelo y límites del entorno en ~/.claude/capacity.yaml (contrato: contracts/orchestration.md).
 ---
 
-# Orquestación multi-modelo v2.8 — Alyp Studio (Opus orquesta · Fable consulta · offloading obligatorio)
+# Orquestación multi-modelo v2.7.2 — Alyp Studio (Opus orquesta · Fable consulta · offloading obligatorio)
 
 > **Capacity**: los nombres de modelos de este documento son el mapeo ACTUAL de
 > `~/.claude/capacity.yaml` (si no existe: copiá `capacity.example.yaml` de este
@@ -46,9 +46,6 @@ exige **tool calling estructurado** — requisito nuevo, ver abajo. Se descartó
 `qwen2.5-coder:3b` como ejecutor (0/5 medido: emite la llamada como texto y no
 ejecuta nada, pero el loop lo reporta como éxito) y el `mecanico_light` pasó a
 `qwen3:4b` (4/4, mismo footprint). Cambio de capacity, no de protocolo.
-
-**v2.8**: carriles por tamaño, routing de review, precisión de offloading de
-tests, spec-review por riesgo, referencia a contracts/execution.md.
 
 ## ¿Quién orquesta? (leé esto primero)
 
@@ -105,11 +102,6 @@ directo (sin pasar por un Sonnet intermediario si la subtarea ya está
 especificada) o el `implementador` Sonnet en cascada. La supervisión y el QA
 corren en el contexto de quien delegó.
 
-**Tests — precisión**: al local van solo tests MECÁNICOS (cobertura adicional,
-casos borde desde ejemplos, schemas Zod), siempre después del verde. El test
-que DEFINE un comportamiento (rojo inicial de TDD) lo escribe quien implementa
-— delegarlo al local es test-after disfrazado y viola el protocolo.
-
 ### Requisito duro del tier mecánico: tool calling estructurado
 
 El ejecutor local **debe** emitir `tool_calls` estructurados. Un modelo que
@@ -136,34 +128,6 @@ regla de offloading obligatorio.
   no es ejecutable por el local: va a Sonnet (mecánico + ambiguo → Sonnet).
 - **Seguridad/secretos/infra/irreversibles**: nunca fueron delegables al local
   y siguen sin serlo.
-
-## Carriles por tamaño de trabajo (routing de proceso)
-
-El carril se decide UNA vez al entrar el pedido; ante duda, subí un carril.
-
-| Trabajo | Entrada | Cadena |
-|---|---|---|
-| Bug | superpowers:systematic-debugging | diagnóstico → test rojo → fix → verify. SIN brainstorming ni plan |
-| Ajuste chico (comportamiento nuevo, alcance trivial) | brainstorming versión corta | diseño de 3 frases + aprobación → implementación con TDD. SIN writing-plans |
-| Feature | cadena completa | spec → plan → subagent-driven (contracts/execution.md) → review → finishing |
-| Plataforma / épica | PRD primero (write-spec) | partir en specs de feature → N cadenas completas |
-| Legacy sin estándar | guides/remediacion-legacy.md | auditar (manifest regla 3) → plan de remediación → carril normal |
-
-El carril corto no saltea el diseño: lo dimensiona. La regla boy-scout aplica
-en todos: feature nueva sigue el estándar; lo existente no se reestructura
-salvo proyecto de remediación explícito.
-
-## Routing de review (tabla única)
-
-| Situación | Mecanismo |
-|---|---|
-| Review por tarea (subagent-driven) | `revisor` sonnet, con checklist de capa del engineering-baseline |
-| Review final pre-merge / seguridad crítica | `revisor` model opus (borrador de veredicto; el orquestador aprueba) + security-review si toca auth/RLS/secretos/dinero |
-| Diff chico fuera de un plan | `/code-review` del harness directo |
-| Spec que toca auth/RLS/dinero/irreversibles | review adversarial del spec ANTES de writing-plans (`revisor` opus o `consultor`) |
-| Feedback recibido | superpowers:receiving-code-review (rigor, no aceptación performativa) |
-
-`requesting-code-review` define CUÁNDO pedir review; esta tabla define QUIÉN.
 
 ## Matriz de routing
 
@@ -268,8 +232,6 @@ subtarea debe poder correr **desatendida y ser juzgable**. Reglas duras:
 - **Override de modelo por despacho**: `model: "opus"` para las filas de
   razonamiento pesado de la matriz, `model: "haiku"` para búsquedas/triage
   baratos. Sin override = Sonnet. El `consultor` es fijo `model: "fable"`.
-- Mapeo de roles al ejecutar planes superpowers: `contracts/execution.md`
-  (tabla normativa).
 
 Despachá varios en paralelo (un solo mensaje con varias tool calls) cuando las
 tareas son independientes. Cada agente devuelve un resumen; vos integrás y
