@@ -33,7 +33,7 @@ cada proyecto: se instala (skills) o se referencia (manifiesto), y el
         ▼
 
 2. skills/  (perfil next·supabase·vercel)   +   agents/
-   8 skills instalables + 4 agentes de Claude Code
+   9 skills instalables + 4 agentes de Claude Code
    → el "cómo" concreto para el stack de Alyp Studio
    → se instalan en ~/.claude/skills/ (ver docs/installation.md)
 
@@ -53,7 +53,7 @@ heredan sin negociar.
 
 ---
 
-## Los 8 skills
+## Los 9 skills
 
 | Skill | Rol | Contrato que implementa | Versión |
 |---|---|---|---|
@@ -62,9 +62,10 @@ heredan sin negociar.
 | `agentic-logging` | Logging GPS estructurado (`agenticLogger`), standalone para cualquier Node/TS | `logging-standard`, `traceid-contract` | 1.1.1 |
 | `alyp-observability` | OTel agnóstico, Vercel Log Drains, reemplaza stubs de logger/error-codes | `observability` | 1.1.0 |
 | `alyp-qa-standard` | Catálogo de flujos YAML, Playwright con 3 oráculos (UI+DB+logs), smoke agéntico | `qa-standard` | 1.0.0 |
-| `devstral-orchestration` | Protocolo multi-modelo v2.6 (6 tiers, `capacity.yaml` por entorno) | `orchestration` | 2.6.0 |
+| `devstral-orchestration` | Protocolo multi-modelo v2.8 (6 tiers, `capacity.yaml` por entorno) | `orchestration` | 2.8.0 |
 | `alyp-maestro` | Curaduría de conocimiento LOCAL por proyecto (skills en `.claude/skills/` del repo cliente) | — (`provides: [curaduria]`, sin contrato propio) | 1.0.0 |
 | `alyp-token-savings` | Ahorro de tokens de Claude Code — statusline de contexto, hook `context-guard`, política RTK | — (`provides: [token-savings]`, sin contrato propio) | 1.0.1 |
+| `architecture-standards` | Doctrina de decisión arquitectónica: monolito modular como hipótesis, puertas una/dos vías, un ADR por decisión estructural | `engineering-baseline` (§02) | 1.0.0 |
 
 Los 4 agentes de Claude Code (`agents/`) — `consultor`, `explorador`,
 `implementador`, `revisor` — son los subagentes que el protocolo de
@@ -207,6 +208,6 @@ happy path — "parece correcto" no es evaluable.
 
 - [`docs/installation.md`](docs/installation.md) — cómo instalar
 - [`docs/adopcion-equipos.md`](docs/adopcion-equipos.md) — qué adopta un equipo y en qué orden
-- [`docs/skill-ecosystem.md`](docs/skill-ecosystem.md) — cadena de delegación entre los 8 skills y ciclo operativo
+- [`docs/skill-ecosystem.md`](docs/skill-ecosystem.md) — cadena de delegación entre los 9 skills y ciclo operativo
 - [`docs/environment-strategy.md`](docs/environment-strategy.md) — estrategia de ambientes dev/staging/prod
 - [`guides/guia-codigo-agentic-ready.md`](guides/guia-codigo-agentic-ready.md) — guía de referencia completa del estándar de código

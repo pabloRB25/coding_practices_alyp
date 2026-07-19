@@ -1,1 +1,5 @@
 .superpowers/
+
+# Claude Code — internos de worktree y config local por máquina (no versionar)
+.claude/worktrees/
+.claude/settings.local.json

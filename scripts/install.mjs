@@ -29,7 +29,7 @@ for (let i = 0; i < argv.length; i++) {
 const SKILLS = [
   'alyp-new-project', 'alyp-agentic-standards', 'agentic-logging',
   'alyp-observability', 'alyp-qa-standard', 'devstral-orchestration',
-  'alyp-maestro', 'alyp-token-savings',
+  'alyp-maestro', 'alyp-token-savings', 'architecture-standards',
 ];
 
 const isLink = (p) => { try { return lstatSync(p).isSymbolicLink(); } catch { return false; } };
