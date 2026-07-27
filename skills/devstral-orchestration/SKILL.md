@@ -1,6 +1,6 @@
 ---
 name: devstral-orchestration
-version: 2.8.0
+version: 2.9.0
 provides: [orchestration]
 description: >
   Protocolo de orquestación multi-modelo v2.8 de Claude Code para Alyp Studio — Opus orquesta SIEMPRE, Fable es consultor de invocación explícita, offloading local OBLIGATORIO (el tier mecánico exige tool calling estructurado). El orquestador Opus (loop principal) rutea entre 6 roles: orquestador Opus, consultor Fable (invocación explícita, veredicto ⬆ FABLE), subagentes Opus (razonamiento pesado aislado), subagentes Sonnet (implementador/explorador/revisor), ejecutor local en dos tiers vía delegate_to_devstral (llamable directo por Opus o por Sonnet), y QA local por hooks. Invocar ANTES de orquestar o delegar por primera vez en la sesión, o para interpretar veredictos del hook (✅/⚠/❌/🚨). Versiones anteriores en versions/. Mapeo tier→modelo y límites del entorno en ~/.claude/capacity.yaml (contrato: contracts/orchestration.md).
@@ -50,6 +50,13 @@ ejecuta nada, pero el loop lo reporta como éxito) y el `mecanico_light` pasó a
 **v2.8**: carriles por tamaño, routing de review, precisión de offloading de
 tests, spec-review por riesgo, referencia a contracts/execution.md.
 
+**v2.9**: el offloading local pasa de "toda tarea mecánica, en serie" a **lote +
+solapamiento** con umbral numérico (≥3 archivos o ≥1 min, y algo que hacer en
+paralelo), tras medir 1 delegación en 1.486 ediciones y ~28 s de costo fijo por
+delegación. El tier heavy se intenta siempre aunque haya presión de RAM (slot
+exclusivo, QA descargado, KV reducido, degradación a light). Perfil de RAM
+corregido con valores medidos. El MCP pasa a leer `capacity.yaml` de verdad.
+
 ## ¿Quién orquesta? (leé esto primero)
 
 **Guard de subagentes**: si fuiste despachado como subagente para ejecutar una
@@ -84,11 +91,42 @@ despacho**: el mismo `revisor` despachado con `model: "opus"` es tu revisor de
 seguridad; el mismo `explorador` con `model: "haiku"` es un buscador barato.
 Un solo set de agentes, tres precios. El `consultor` es fijo `model: "fable"`.
 
-## Offloading obligatorio (regla dura de v2.7)
+## Offloading al local — por lote y en paralelo (v2.9)
 
-> **Si el ejecutor local PUEDE ejecutar la subtarea, la subtarea VA al local.**
-> No delegar al local algo delegable es una violación del protocolo, no una
-> preferencia de estilo.
+> **El criterio NO es "¿esta tarea es mecánica?" sino "¿hay un LOTE mecánico que
+> pueda correr MIENTRAS hago otra cosa?".** El carril local existe para robarle
+> trabajo al contexto caro del orquestador, no para insertar latencia en el
+> camino crítico.
+
+**Por qué cambió (medido 2026-07-26).** Una delegación cuesta **~28 s**, igual en
+frío que en caliente — el costo es el loop de 2 iteraciones del ejecutor, no la
+carga del modelo (hipótesis descartada por medición: `think:false` no mejora).
+Un `Edit` inline cuesta ~2 s. La regla anterior ("si es mecánica, VA al local",
+tarea por tarea, en serie) pedía cambiar 2 s por 28 s: se cumplió **1 vez en
+1.486 ediciones** en la semana del 19 al 26 de julio. Una regla con 0,07% de
+adherencia no protege nada; la reemplazamos por una que sí se puede sostener.
+
+### Umbral de delegación (regla dura)
+
+Delegá al local cuando se cumplan **las dos**:
+
+1. **Lote**: ≥3 archivos mecánicos, o ≥1 minuto estimado de trabajo mecánico
+   continuo. Una edición suelta de <30 s se hace inline — delegarla es perder
+   tiempo, no ahorrarlo.
+2. **Solapamiento**: en el momento de delegar tenés otra cosa que hacer
+   (subagentes cloud en vuelo, review, síntesis, otra rama del plan). El carril
+   local corre mientras vos avanzás; si te quedás esperando los 28 s, no delegues.
+
+Cuando ambas se cumplen, **delegar es obligatorio**: no es preferencia de estilo.
+Cuando no se cumplen, hacerlo inline **no es una violación** del protocolo.
+
+**Formulación operativa:** al descomponer un plan, agrupá lo mecánico en UN lote
+por ola y despachalo junto con la ola cloud (§Scheduler de 2 carriles). El
+paralelismo es lo que vuelve gratis el carril local; en serie siempre pierde.
+
+**Telemetría**: el monitor muestra `offloading N deleg / M ediciones` de la
+sesión. Si el ratio queda en 0 durante días de trabajo mecánico, el carril está
+muerto y hay que revisar por qué — no asumir que "no hubo nada delegable".
 
 "Puede ejecutar" se decide con dos preguntas:
 
@@ -136,6 +174,8 @@ regla de offloading obligatorio.
   no es ejecutable por el local: va a Sonnet (mecánico + ambiguo → Sonnet).
 - **Seguridad/secretos/infra/irreversibles**: nunca fueron delegables al local
   y siguen sin serlo.
+- **No hay lote ni solapamiento** (ver Umbral): la tarea va inline. Documentado
+  como decisión normal, no como excepción a justificar.
 
 ## Carriles por tamaño de trabajo (routing de proceso)
 
@@ -378,10 +418,11 @@ Snapshot medido de ESTA máquina; la fuente de verdad viva es
 
 | Recurso | Valor medido | Implicación operativa |
 |---|---|---|
-| Ejecutor light (mecanico_light) | 2.5 GB disco · **5.1 GB cargado** · tool calling **4/4** | Default: 2 delegaciones concurrentes + QA residente, sin presión de SO |
-| Ejecutor heavy (mecanico_heavy, MoE A3B) | 18.6 GB disco · ~21 GB cargado · tool calling OK | Opt-in, NO default: co-residente con QA + Claude Code + Chrome **hace paginar el SO** (una QA trepó de 5 s a 167 s). De a UNA delegación |
-| QA hooks | 1.9 GB disco · **2.7 GB cargado** · ~5 s por review | Residente junto al light (`OLLAMA_MAX_LOADED_MODELS=2`). No necesita tool calling: devuelve prosa |
-| Camino rápido local | light + QA ≈ **7.8 GB residentes** (de 36 GB) | Es el modo de paralelismo seguro; el heavy es la excepción razonada |
+| Ejecutor light (mecanico_light) | 2.5 GB disco · **7.4 GB cargado** (medido `/api/ps` 2026-07-26, num_ctx 16384) · tool calling **4/4** | Default: 2 delegaciones concurrentes + QA residente, sin presión de SO |
+| Ejecutor heavy (mecanico_heavy, MoE A3B) | 18.6 GB disco · **20 GB cargado** con num_ctx 8192 · 49/49 capas a GPU · tool calling OK | Opt-in. **Se intenta SIEMPRE, aun con RAM presionada** (decisión del usuario, 2026-07-26): el MCP acota el daño con slot exclusivo + descarga del QA + KV reducido, y degrada a light si no entra. El `⚠ heavy vetado` del monitor es un AVISO, no un bloqueo. Costo medido: **+3,8 GB de swap** en una corrida con 3,3 GB de RAM libre |
+| **Latencia por delegación** | **~28 s (light), ~18 s (heavy)** — igual en frío y en caliente | Es el número que justifica el umbral de lote. El loop son 2 iteraciones; la carga del modelo NO domina. Delegar tareas de <30 s pierde tiempo |
+| QA hooks | 1.9 GB disco · **2.7 GB cargado** · ~5 s por review | Residente junto al light (`OLLAMA_MAX_LOADED_MODELS=2`). No necesita tool calling: devuelve prosa. El tier heavy lo descarga antes de cargar |
+| Camino rápido local | light + QA ≈ **10.1 GB residentes** (de 36 GB) | Es el modo de paralelismo seguro; el heavy es la excepción razonada |
 | Descartado como ejecutor | `qwen2.5-coder:3b` · tool calling **0/5** | Emite `write_file` como texto y no ejecuta; el loop lo reporta como éxito. Sirve solo de QA |
 
 > **Ojo con las unidades**: Ollama pre-asigna KV al cargar (`NUM_PARALLEL × num_ctx`),
