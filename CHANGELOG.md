@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.3.0 — 2026-08-16
+
+### `alyp-exec` v1.0.0 — el loop de ejecución, y el invariante de evidencia que faltaba
+
+El ecosistema tenía la matriz de routing (`devstral-orchestration`: **quién** hace cada cosa) pero no el loop de ejecución (**cómo fluye** una tarea de programación de punta a punta). Sin contrato de ida y vuelta, el orquestador terminaba leyendo repo para poder validar — y su ventana, el recurso más caro de la sesión, se llenaba de material que debería haber muerto en el contexto de un subagente.
+
+- **Skill nuevo `alyp-exec`** (perfil de `orchestration`, invariantes 1-7). Núcleo de 3 tiers: Opus orquesta y valida · Sonnet ejecuta y se autovalida · Haiku lectura barata. Define tres estructuras (Contrato de Tarea → Reporte de Tarea → ledger en disco), un loop de 5 fases con olas paralelas particionadas por archivos disjuntos, y dos modos de ejecución sobre las mismas estructuras: **A** conversacional (tool `Agent`, humano en el medio) y **B** harness (tool `Workflow`, plan cerrado). References: `contrato-tarea.md`, `reporte-tarea.md`, `gates.md`, `modo-b-workflow.md`; asset `ledger-init.sh`.
+- **`contracts/orchestration.md` → v1.2**, dos enmiendas:
+  - **Invariante 2**: el offloading al mecánico pasa de *obligatorio* a **opcional según entorno**. Se alinea con la realidad medida (`mecanico_heavy: null` desde el 2026-08-07 por la colisión de RAM con el evaluador de PAF) y permite que un perfil saque el carril local del camino crítico sin incumplir el contrato.
+  - **Invariante 7 (nuevo)**: *la evidencia que decide un veredicto la genera quien juzga, no quien es juzgado*. Cierra un hueco preexistente — el invariante 4 exigía evidencia pero no declaraba **quién la genera**. Piso de aceptación en todo nivel de riesgo: (a) re-ejecución independiente del criterio fijado *antes* de delegar, (b) gate de alcance que excluye los artefactos de verificación, (c) gate de integración por lote.
+- **Origen del invariante 7**: consulta al `consultor` Fable sobre la estrategia (2026-08-16). Detectó que en el diseño original toda la evidencia que el orquestador "validaba" había sido generada por la parte juzgada — forjable sin mala fe (salida stale, cwd equivocado, comando que pasa en vacío con 0 casos, reward-hacking sobre el propio test). El diseño lo corrige con los gates **G1 re-ejecución · G2 allowlist · G3 gate de ola**, piso para todo riesgo incluido el 0.
+- **Hallazgo del harness**: la tool `Agent` **no expone `effort`** (solo `model`); `agent()` dentro de `Workflow` expone ambos por etapa. La escalación "subí esfuerzo antes que modelo" queda declarada como **exclusiva de Modo B** — regla anti-divergencia: si un modo no puede cumplir una palanca, se declara no disponible, no se emula.
+- **`devstral-orchestration` → 2.10.0**: sección de frontera al tope (quién vs cómo; al ejecutar manda `alyp-exec`) y nota de contrato en §Offloading — el umbral de lote+solapamiento de v2.9 ES la forma que toma la opcionalidad del invariante 2 en este perfil.
+- **`scripts/install.mjs`**: `alyp-exec` sumado a la lista `SKILLS` (es hardcodeada — un skill nuevo no se despliega solo).
+- Diseño completo y trazabilidad de las decisiones: `docs/specs/2026-08-16-alyp-exec-design.md`.
+
 ## v2.2.2 — 2026-07-16
 
 ### Endurecimiento del ejecutor local — el offloading obligatorio deja de tener falsos positivos

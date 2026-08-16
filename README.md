@@ -33,7 +33,7 @@ cada proyecto: se instala (skills) o se referencia (manifiesto), y el
         ▼
 
 2. skills/  (perfil next·supabase·vercel)   +   agents/
-   8 skills instalables + 4 agentes de Claude Code
+   9 skills instalables + 4 agentes de Claude Code
    → el "cómo" concreto para el stack de Alyp Studio
    → se instalan en ~/.claude/skills/ (ver docs/installation.md)
 
@@ -53,16 +53,18 @@ heredan sin negociar.
 
 ---
 
-## Los 8 skills
+## Los 10 skills
 
 | Skill | Rol | Contrato que implementa | Versión |
 |---|---|---|---|
 | `alyp-new-project` | Orquestador — crea un proyecto SaaS desde cero (16 fases), delega a los demás skills en orden | — (orquesta, no implementa un contrato propio) | 1.1.0 |
 | `alyp-agentic-standards` | Arquitectura por features, gate `pnpm verify`, generador `new-feature` | `code-standard` | 1.1.0 |
+| `architecture-standards` | Doctrina de decisión arquitectónica — monolito modular como hipótesis (no default), puertas una vía/dos vías, ADR por decisión estructural | `engineering-baseline` (§02) | 1.0.0 |
 | `agentic-logging` | Logging GPS estructurado (`agenticLogger`), standalone para cualquier Node/TS | `logging-standard`, `traceid-contract` | 1.1.1 |
 | `alyp-observability` | OTel agnóstico, Vercel Log Drains, reemplaza stubs de logger/error-codes | `observability` | 1.1.0 |
 | `alyp-qa-standard` | Catálogo de flujos YAML, Playwright con 3 oráculos (UI+DB+logs), smoke agéntico | `qa-standard` | 1.0.0 |
-| `devstral-orchestration` | Protocolo multi-modelo v2.6 (6 tiers, `capacity.yaml` por entorno) | `orchestration` | 2.6.0 |
+| `devstral-orchestration` | Protocolo multi-modelo (6 tiers, `capacity.yaml` por entorno) — define **quién** hace cada cosa | `orchestration` | 2.10.0 |
+| `alyp-exec` | Loop de ejecución Opus↔Sonnet — define **cómo fluye** el trabajo: contrato de tarea, olas, gates G1/G2/G3, ledger, modos A/B | `orchestration` (invariantes 1-7) | 1.0.0 |
 | `alyp-maestro` | Curaduría de conocimiento LOCAL por proyecto (skills en `.claude/skills/` del repo cliente) | — (`provides: [curaduria]`, sin contrato propio) | 1.0.0 |
 | `alyp-token-savings` | Ahorro de tokens de Claude Code — statusline de contexto, hook `context-guard`, política RTK | — (`provides: [token-savings]`, sin contrato propio) | 1.0.1 |
 
@@ -145,10 +147,12 @@ coding_practices_alyp/
 ├── skills/                         # perfil next·supabase·vercel (capa 2)
 │   ├── alyp-new-project/
 │   ├── alyp-agentic-standards/
+│   ├── architecture-standards/
 │   ├── agentic-logging/
 │   ├── alyp-observability/
 │   ├── alyp-qa-standard/
 │   ├── devstral-orchestration/
+│   ├── alyp-exec/
 │   ├── alyp-maestro/
 │   └── alyp-token-savings/
 ├── agents/                         # subagentes de Claude Code
@@ -207,6 +211,6 @@ happy path — "parece correcto" no es evaluable.
 
 - [`docs/installation.md`](docs/installation.md) — cómo instalar
 - [`docs/adopcion-equipos.md`](docs/adopcion-equipos.md) — qué adopta un equipo y en qué orden
-- [`docs/skill-ecosystem.md`](docs/skill-ecosystem.md) — cadena de delegación entre los 8 skills y ciclo operativo
+- [`docs/skill-ecosystem.md`](docs/skill-ecosystem.md) — cadena de delegación entre los 9 skills y ciclo operativo
 - [`docs/environment-strategy.md`](docs/environment-strategy.md) — estrategia de ambientes dev/staging/prod
 - [`guides/guia-codigo-agentic-ready.md`](guides/guia-codigo-agentic-ready.md) — guía de referencia completa del estándar de código

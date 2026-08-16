@@ -1,6 +1,6 @@
 ---
 name: devstral-orchestration
-version: 2.9.0
+version: 2.10.0
 provides: [orchestration]
 description: >
   Protocolo de orquestación multi-modelo v2.8 de Claude Code para Alyp Studio — Opus orquesta SIEMPRE, Fable es consultor de invocación explícita, offloading local OBLIGATORIO (el tier mecánico exige tool calling estructurado). El orquestador Opus (loop principal) rutea entre 6 roles: orquestador Opus, consultor Fable (invocación explícita, veredicto ⬆ FABLE), subagentes Opus (razonamiento pesado aislado), subagentes Sonnet (implementador/explorador/revisor), ejecutor local en dos tiers vía delegate_to_devstral (llamable directo por Opus o por Sonnet), y QA local por hooks. Invocar ANTES de orquestar o delegar por primera vez en la sesión, o para interpretar veredictos del hook (✅/⚠/❌/🚨). Versiones anteriores en versions/. Mapeo tier→modelo y límites del entorno en ~/.claude/capacity.yaml (contrato: contracts/orchestration.md).
@@ -8,6 +8,14 @@ description: >
 
 # Orquestación multi-modelo v2.8 — Alyp Studio (Opus orquesta · Fable consulta · offloading obligatorio)
 
+> **Frontera con `alyp-exec` (desde 2.10)**: este skill define **QUIÉN** hace
+> cada cosa — tiers, matriz de routing, carril local, veredictos de hooks,
+> consultor. **`alyp-exec` define CÓMO fluye el trabajo** — contrato de tarea,
+> olas, gates de aceptación, ledger, modos A/B. Al **ejecutar** un plan o un
+> conjunto de tareas de programación, invocá `alyp-exec`: ante conflicto sobre el
+> loop de ejecución, manda él. Este skill sigue siendo la referencia para el
+> routing, el carril local y la interpretación de veredictos del hook.
+>
 > **Capacity**: los nombres de modelos de este documento son el mapeo ACTUAL de
 > `~/.claude/capacity.yaml` (si no existe: copiá `capacity.example.yaml` de este
 > skill y avisá una vez). Doctrina = tiers (juez/razonador/obrero/barato/mecánico);
@@ -97,6 +105,13 @@ Un solo set de agentes, tres precios. El `consultor` es fijo `model: "fable"`.
 > pueda correr MIENTRAS hago otra cosa?".** El carril local existe para robarle
 > trabajo al contexto caro del orquestador, no para insertar latencia en el
 > camino crítico.
+
+> **Nota de contrato (v1.2)**: `contracts/orchestration.md` invariante 2 pasó el
+> offloading al mecánico de *obligatorio* a **opcional según entorno**. El umbral
+> de abajo ES la forma que toma esa opcionalidad en este perfil: dentro del
+> umbral, delegar sigue siendo obligatorio; fuera de él, hacerlo inline no es una
+> excepción a justificar. En el loop de `alyp-exec` el carril local queda **fuera
+> del camino crítico** por decisión de perfil.
 
 **Por qué cambió (medido 2026-07-26).** Una delegación cuesta **~28 s**, igual en
 frío que en caliente — el costo es el loop de 2 iteraciones del ejecutor, no la
