@@ -1,6 +1,6 @@
 ---
 name: alyp-agentic-standards
-version: 1.1.0
+version: 1.2.0
 provides: [code-standard]
 requires: [agentic-logging]
 description: >
@@ -136,6 +136,55 @@ Reglas de la fase:
 
 Agregar a la config de ESLint del proyecto las reglas de `assets/templates/eslint.module-boundaries.cjs`: no deep imports entre features (solo por barrel), `no-console`, `no-empty` sin catch vacío, calidad de código.
 
+## FASE 4.5 — Código muerto: detección y gate (knip)
+
+Para un agente, el código muerto es deuda **activa**, no pasiva: se lee (tokens
+de exploración desperdiciados en cada sesión), se imita (un patrón abandonado
+sigue "votando" como ejemplo y el agente lo replica en código nuevo) y se
+mantiene (refactors mecánicos actualizan fielmente código que nadie ejecuta).
+El flujo con agentes además lo genera más rápido: versiones abandonadas,
+helpers huérfanos, exports "por las dudas". Política: detección mecanizada +
+borrado inmediato.
+
+**Tres capas de "muerto", cada una con su validación:**
+
+| Capa | Qué es | Cómo se valida |
+|------|--------|----------------|
+| 1. Estática | Archivos, exports y deps sin referencias | `knip` como gate (esta fase) + `noUnusedLocals`/`no-unused-vars` para lo intra-archivo (FASES 1 y 4) |
+| 2. Dinámica | Alcanzable pero sin ejecución real: endpoints sin tráfico, ramas de feature flags resueltos | Logs estructurados (`contexto`) + analytics. Sin tráfico en 90 días = candidato a borrar. Flag 100% on/off por más de un ciclo = inline-ear y borrar la rama perdedora |
+| 3. Plataforma | Columnas/tablas/RPC/edge functions/policies/env vars/crons huérfanos | Auditoría periódica cruzando esquema Supabase y config contra grep del codebase (delegable a agente — oráculo claro: ¿hay referencia? ¿hay tráfico?) |
+
+La capa 1 se mecaniza al 100% (esta fase). Las capas 2 y 3 no tienen gate
+posible: quedan en auditoría trimestral con oráculo explícito.
+
+**Instalación (bootstrap o audit):**
+
+1. `pnpm add -D knip` en la raíz del workspace (entiende monorepos pnpm y
+   tiene plugin Next.js: sabe que `page.tsx`/`route.ts`/`middleware.ts` son
+   entrypoints implícitos). Reemplaza a `ts-prune` + `depcheck` + `unimported`
+   (sin mantenimiento — no usarlos).
+2. Config `knip.json` **commiteada**, con los entrypoints no estándar
+   declarados (`scripts/`, jobs, handlers registrados por convención).
+3. **Primera corrida = solo reporte** (`pnpm knip`): triage manual de falsos
+   positivos (imports dinámicos, barrels que re-exportan de más, código
+   invocado por convención) → ajustar config. **Nunca `--fix` automático en la
+   primera pasada.**
+4. **Purga inicial en PR dedicado** que solo borra, sin mezclar con features.
+   La herramienta *propone*; el gate *confirma*: `pnpm verify` verde + preview
+   funcionando = era muerto de verdad.
+5. **Ratchet permanente**: recién entonces knip entra al gate (sumarlo a
+   `verify` o como job propio de CI). Desde ahí, código muerto nuevo no entra:
+   el PR que deja un export huérfano falla el gate.
+
+**Reglas de la fase (no negociables):**
+
+- Código muerto se **borra, nunca se comenta** ni se archiva en `/old` o
+  `_deprecated`. Git es el archivo: commit descriptivo
+  (`chore: eliminar X, muerto desde <causa>`) hace la recuperación trivial.
+  El código comentado es el peor caso para el agente: gasta tokens y confunde.
+- Si un cambio deja código sin referencias, **el mismo PR lo elimina** — el
+  agente que genera el huérfano lo limpia con el contexto fresco y el diff chico.
+
 ## FASE 5 — Generador de features
 
 Copiar `assets/templates/new-feature.mjs` a `scripts/new-feature.mjs` **tal cual, sin reemplazos** — crea el scaffold de una feature nueva en un comando, más un stub de migración SQL con RLS (referencia del stub: `assets/templates/migration_add_dominio.sql`) e imprime el runbook.
@@ -209,6 +258,7 @@ Convenciones no negociables (también en el CLAUDE.md slim):
 7. Todo `catch` loggea con `agenticLogger.error(ctx, err)` — nunca vacío
 8. Sin `console.log/error` — usar `agenticLogger`
 9. "Done" = `pnpm verify` verde **+** evidencia reproducible del happy path — nunca "parece correcto" (ver Definición de "done" en FASE 2 y el agente `revisor`/juez)
+10. Código muerto se **elimina en el mismo PR** que lo deja huérfano — nunca comentado ni en `/old`; git es el archivo (ver FASE 4.5)
 
 Commit atómico: feature + migración juntos (`git add src/features/<dominio>/ supabase/migrations/ src/types/ app/api/<dominio>/`).
 
@@ -274,6 +324,7 @@ grep "agentic-standard: v1" CLAUDE.md
 - [ ] `pnpm new-feature` en scripts de package.json
 - [ ] Vitest instalado y `vitest.config.ts` creado
 - [ ] ESLint: `no-restricted-imports` + `no-console` + `no-empty`
+- [ ] knip instalado con `knip.json` commiteada (entrypoints declarados) e integrado al gate
 - [ ] CI: `pnpm verify` como gate en lugar de pasos separados
 - [ ] `CLAUDE.md` slim generado con sello `agentic-standard: v1`
 - [ ] Sello verificable con `grep "agentic-standard" CLAUDE.md`
@@ -288,4 +339,5 @@ grep "agentic-standard: v1" CLAUDE.md
 - [ ] Errores TypeScript pre-existentes documentados en CLAUDE.md
 - [ ] Migración incremental a `src/features/` planificada
 - [ ] Barrels `index.ts` agregados a dominios existentes
+- [ ] Primera corrida de knip triageada (solo reporte, sin `--fix`); purga inicial en PR dedicado; recién después knip al gate
 - [ ] CLAUDE.md previo preservado en secciones manuales
