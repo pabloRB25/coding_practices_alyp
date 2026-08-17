@@ -27,6 +27,11 @@ Prueba de fuego: si una regla nombra un producto, pertenece al perfil, no acá.
   logging-standard (ver `contracts/logging-standard.md`). Sin logging no estructurado.
 - **I9 — Generación sobre repetición.** Crear un dominio nuevo es UN comando que
   scaffoldea la estructura completa (archivos + stub de migración + runbook).
+- **I10 — Índice de dominios derivado.** El repo mantiene un índice navegable de
+  sus dominios —nombre, ubicación y API pública— **generado desde el código**,
+  nunca escrito a mano, en el documento que el agente lee primero. Regenerarlo
+  no produce diff: si lo produce, el índice está desactualizado y el gate falla.
+  I4 hace *predecible* dónde está cada dominio; I10 hace *enumerable* cuáles hay.
 
 ## Aceptación agnóstica (para cualquier perfil)
 
@@ -35,6 +40,8 @@ Prueba de fuego: si una regla nombra un producto, pertenece al perfil, no acá.
 3. Un import profundo entre dominios falla el lint; el import por barrel pasa.
 4. El repo lleva el sello `agentic-standard: v1` en su doc de agente y el
    manifiesto `standards.yaml` lo declara.
+5. El índice de dominios está poblado y regenerarlo no produce diff; un dominio
+   nuevo sin regenerar el índice deja el gate en rojo.
 
 ## Perfiles
 

@@ -1,6 +1,6 @@
 ---
 name: alyp-agentic-standards
-version: 1.2.0
+version: 1.3.0
 provides: [code-standard]
 requires: [agentic-logging]
 description: >
@@ -246,7 +246,7 @@ Next.js tiene dos runtimes. La confusión entre ellos causa crashes silenciosos 
 ## FASE 7 — CLAUDE.md slim (operativo por proyecto)
 
 Generar `CLAUDE.md` en la raíz del proyecto copiando `assets/templates/CLAUDE.slim.md` (reemplazar `$CLIENT_NAME`). Incluye: mapa de ambientes, comandos esenciales, arquitectura, convenciones, definición de "done", runbook de nueva feature y Edge vs Node.
-El `generate-context.js` (FASE 8 de `alyp-new-project`) actualiza la sección de features automáticamente.
+La tabla de dominios se puebla en la FASE 7.5 (no editarla a mano). El `generate-context.js` (FASE 8 de `alyp-new-project`) mantiene `memory/*.md` y las secciones `<!-- MANUAL -->`.
 
 Convenciones no negociables (también en el CLAUDE.md slim):
 1. `<feature>.<rol>.ts` — naming siempre, sin excepciones
@@ -261,6 +261,48 @@ Convenciones no negociables (también en el CLAUDE.md slim):
 10. Código muerto se **elimina en el mismo PR** que lo deja huérfano — nunca comentado ni en `/old`; git es el archivo (ver FASE 4.5)
 
 Commit atómico: feature + migración juntos (`git add src/features/<dominio>/ supabase/migrations/ src/types/ app/api/<dominio>/`).
+
+## FASE 7.5 — Índice de dominios (GPS de features)
+
+Implementa el invariante **I10** de `contracts/code-standard.md`. I4 hace
+*predecible* dónde vive un dominio; I10 lo hace **enumerable**: el agente sabe
+qué dominios existen y qué expone cada uno sin recorrer el árbol ni gastar
+tokens en exploración.
+
+El índice se **deriva del código** (carpetas de `features/` + barrels), nunca se
+escribe a mano — un índice escrito a mano miente en el segundo commit.
+
+**Instalación (bootstrap o audit):**
+
+1. Copiar `assets/templates/generate-feature-index.mjs` a
+   `scripts/generate-feature-index.mjs` **tal cual, sin reemplazos**.
+2. Agregar a `package.json` los scripts de
+   `assets/templates/package.scripts.feature-index.json`.
+3. Verificar que `CLAUDE.md` tiene los marcadores donde va el índice (el
+   `CLAUDE.slim.md` de FASE 7 ya los trae):
+   ```
+   <!-- FEATURE-INDEX:START -->
+   <!-- FEATURE-INDEX:END -->
+   ```
+4. Poblar con `pnpm feature-index` y commitear el resultado.
+5. **Ratchet**: recién con el índice poblado, sumar el check al gate único —
+   `"verify": "pnpm feature-index:check && pnpm typecheck && pnpm lint && pnpm test --run"`.
+   Desde ahí, un dominio nuevo sin regenerar el índice deja el PR en rojo.
+
+**Qué reporta** — por dominio: ubicación, roles presentes (`<dominio>.<rol>.ts`)
+y la API pública real leída del barrel. Marca `⚠️ sin test` los dominios sin
+`<dominio>.test.ts` y `⚠️ barrel vacío o ausente` los que violan I6. El índice
+es, además, un detector de deriva del estándar.
+
+**Reglas de la fase:**
+
+- El bloque entre marcadores es **generado**: editarlo a mano lo deja en rojo en
+  el próximo `verify`. Para cambiar el contenido se cambia el código, no la tabla.
+- FASE 5 y esta son un par: `pnpm new-feature` crea el dominio, `pnpm feature-index`
+  lo publica. Ambos en el mismo commit atómico.
+- **Un solo dueño por bloque**: `generate-context.js` (FASE 8 de `alyp-new-project`)
+  mantiene `memory/*.md` y las secciones `<!-- MANUAL -->` de CLAUDE.md; la tabla
+  de dominios es de este script y solo de este script.
 
 ## FASE 8 — CI: integrar verify como gate
 
@@ -299,6 +341,12 @@ pnpm supabase:gen
 
 # 5. CLAUDE.md slim tiene sello
 grep "agentic-standard: v1" CLAUDE.md
+
+# 6. Índice de dominios poblado y al día (I10)
+pnpm feature-index:check
+# → "✅ Índice de dominios al día (N dominios)". Debe fallar si se crea un
+#   dominio nuevo y no se regenera:
+#   pnpm new-feature prueba-indice && pnpm feature-index:check  → exit 1
 ```
 
 ## Modo audit — integrar en proyecto existente
@@ -328,6 +376,9 @@ grep "agentic-standard: v1" CLAUDE.md
 - [ ] CI: `pnpm verify` como gate en lugar de pasos separados
 - [ ] `CLAUDE.md` slim generado con sello `agentic-standard: v1`
 - [ ] Sello verificable con `grep "agentic-standard" CLAUDE.md`
+- [ ] `scripts/generate-feature-index.mjs` creado + scripts `feature-index` / `feature-index:check` en package.json
+- [ ] Marcadores `FEATURE-INDEX:START/END` presentes en CLAUDE.md e índice poblado (`pnpm feature-index`)
+- [ ] `feature-index:check` integrado al gate `verify` (después de poblar)
 - [ ] `new-feature.mjs` genera migration stub con RLS template e imprime runbook
 - [ ] `supabase/seed.sql` creado con datos mínimos de prueba
 - [ ] Mapa de ambientes en CLAUDE.md slim (rama→Supabase→LOG_PROVIDER)
@@ -341,3 +392,4 @@ grep "agentic-standard: v1" CLAUDE.md
 - [ ] Barrels `index.ts` agregados a dominios existentes
 - [ ] Primera corrida de knip triageada (solo reporte, sin `--fix`); purga inicial en PR dedicado; recién después knip al gate
 - [ ] CLAUDE.md previo preservado en secciones manuales
+- [ ] Índice de dominios generado sobre lo que ya existe (`pnpm feature-index`); los `⚠️ sin test` y `⚠️ barrel vacío o ausente` que reporte se convierten en backlog de remediación, no bloquean la instalación

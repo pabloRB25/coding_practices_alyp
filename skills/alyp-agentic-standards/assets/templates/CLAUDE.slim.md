@@ -87,10 +87,9 @@ import { agenticLogger } from '@/utils/logger';
 - [ ] `/api/health` responde `{ "status": "ok" }`
 
 ## Features del proyecto
-<!-- AUTO-GENERADO por generate-context.js — no editar manualmente -->
-| Feature | Dominio | Archivos |
-|---------|---------|----------|
-| (vacío — correr `node scripts/generate-context.js` para poblar) |
+<!-- FEATURE-INDEX:START -->
+_Correr `pnpm feature-index` para poblar. Este bloque es generado — no editarlo a mano (I10)._
+<!-- FEATURE-INDEX:END -->
 
 ## Logging y debugging
 Ante cualquier error con `traceId`:
