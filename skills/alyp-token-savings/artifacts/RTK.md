@@ -35,6 +35,28 @@ Regla general: **`rtk <herramienta> <args>`**. Cubre lectura de archivos,
 búsquedas, listados, status/diff de git, instalación/scripts de npm, tests,
 lint y builds — que es donde se va el grueso de los tokens de tooling.
 
+## Navegación especializada (fuera de RTK)
+
+Usá esta progresión y detenete tan pronto como obtengas evidencia suficiente:
+
+1. `rtk find` o `fd` para localizar archivos por nombre/ruta.
+2. `rtk grep` para texto, nombres, imports o cadenas conocidas.
+3. `ast-grep` (`sg`) para patrones sintácticos, llamadas y estructuras AST.
+4. Serena para símbolos, definiciones, referencias y relaciones entre archivos.
+5. Leé solamente los archivos o rangos que devolvió la búsqueda.
+
+Herramientas auxiliares:
+
+- `tokei`: dimensionar lenguajes y tamaño de un repo antes de explorarlo.
+- `hyperfine`: comparar rendimiento solo cuando la tarea pida benchmarking.
+- `mise` / `direnv`: detectar y activar el entorno declarado por el proyecto.
+- `delta`: salida visual para humanos; para el agente preferí `rtk git diff`.
+
+Estas herramientas se ejecutan **directamente**, sin prefijo `rtk`: RTK no las
+proxifica. `ast-grep` con rewrite/update, `fd --exec`, `hyperfine`,
+`direnv allow` y `mise install` pueden ejecutar o modificar estado; requieren
+aprobación explícita y nunca deben quedar preautorizados con comodines amplios.
+
 ## Meta Commands (siempre rtk directo)
 
 ```bash
