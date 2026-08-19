@@ -95,7 +95,7 @@ Todo spec de feature incluye, además del diseño:
 - **Dominios afectados**: `features/<X>` nuevos vs modificados.
 - **Contratos Zod**: schemas nuevos/cambiados (nombre y campos clave).
 - **Migraciones**: SQL + política RLS; si hay datos vivos, clasificar cada
-  cambio como expand/migrate/contract (references/migraciones-datos-vivos.md).
+  cambio como expand/migrate/contract según `alyp-agentic-standards`.
 - **QA**: flujos a crear/actualizar en `qa/flujos/*.yaml`.
 - **ADR**: si toca estructura (servicio, límite de dominio, contrato público,
   esquema, proveedor) → ADR según `architecture-standards`; si no, escribir
