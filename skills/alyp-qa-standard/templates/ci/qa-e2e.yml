@@ -1,22 +1,43 @@
-# qa-standard: v1 — E2E de flujos de negocio (P0/P1) en CI
-# Adaptar: rama objetivo, cómo se obtiene QA_BASE_URL (preview de Vercel o dev fijo).
-name: QA E2E
+# qa-standard: v1.1 — E2E de flujos de negocio, REUTILIZABLE (`workflow_call`).
+#
+# No dispara solo: lo invoca el gate que corresponda (assets/ci/gate-stg.yml del
+# skill alyp-new-project). Así el check requerido de la rama es UNO solo y el
+# E2E cuenta dentro de él — un job que dispara por su cuenta no bloquea la
+# promoción, y un gate que no bloquea es telemetría (qa-standard G3).
+#
+# Corre contra el ambiente de desarrollo con reset acotado al namespace QA
+# (qa-standard P7): la DB de dev puede tener datos reales, el reset solo toca
+# las filas marcadas como QA.
+name: QA E2E (reusable)
 
 on:
-  pull_request:
-    branches: [develop, main]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-
-concurrency:
-  group: qa-e2e-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_call:
+    inputs:
+      base_url:
+        description: URL contra la que corren los specs.
+        required: true
+        type: string
+      criticidad:
+        description: 'Filtro de criticidad. Gate de pre-producción: "P0|P1".'
+        required: false
+        default: "P0|P1"
+        type: string
+      timeout_minutos:
+        description: Presupuesto duro (qa.config.yaml → presupuestos.e2e_ci_minutos).
+        required: false
+        default: 10
+        type: number
+    outputs:
+      resultado:
+        description: '"ok" | "sin-secrets" — el caller decide si eso bloquea.'
+        value: ${{ jobs.e2e.outputs.resultado }}
 
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 10 # presupuesto duro (qa.config.yaml: presupuestos.e2e_ci_minutos)
+    timeout-minutes: ${{ inputs.timeout_minutos }}
+    outputs:
+      resultado: ${{ steps.guarda.outputs.hay_secrets == 'true' && 'ok' || 'sin-secrets' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -25,25 +46,61 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install chromium --with-deps
-      - name: Seed del ambiente de pruebas
+
+      # Guarda de secrets: sin ambiente QA cargado los specs no tienen contra
+      # qué correr. `secrets` no se puede leer en un `if:` de job, así que se
+      # evalúa acá y se propaga. Degradación declarada, no fallo silencioso:
+      # el motivo queda en el Summary y el caller lo ve en el output.
+      - name: Guarda — secrets QA
+        id: guarda
+        env:
+          QA_SUPABASE_URL: ${{ secrets.QA_SUPABASE_URL }}
+          QA_SUPABASE_SERVICE_ROLE: ${{ secrets.QA_SUPABASE_SERVICE_ROLE }}
+          QA_SUPABASE_DB_URL: ${{ secrets.QA_SUPABASE_DB_URL }}
+        run: |
+          faltantes=()
+          for nombre in QA_SUPABASE_URL QA_SUPABASE_SERVICE_ROLE QA_SUPABASE_DB_URL; do
+            if [ -z "${!nombre}" ]; then faltantes+=("$nombre"); fi
+          done
+          if [ ${#faltantes[@]} -eq 0 ]; then
+            echo "hay_secrets=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "hay_secrets=false" >> "$GITHUB_OUTPUT"
+          echo "::warning title=QA E2E sin ambiente::faltan ${faltantes[*]}"
+          {
+            echo "### ⏭️ QA E2E no corrió — faltan secrets"
+            for n in "${faltantes[@]}"; do echo "- \`$n\`"; done
+            echo
+            echo "Declarar la excepción en \`standards.yaml\` o cargar los secrets."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Playwright — chromium
+        if: steps.guarda.outputs.hay_secrets == 'true'
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: Reset + seed (namespace QA)
+        if: steps.guarda.outputs.hay_secrets == 'true'
         run: pnpm --filter qa seed
         env:
           QA_SUPABASE_URL: ${{ secrets.QA_SUPABASE_URL }}
           QA_SUPABASE_SERVICE_ROLE: ${{ secrets.QA_SUPABASE_SERVICE_ROLE }}
-      - name: E2E P0+P1
+          QA_SUPABASE_DB_URL: ${{ secrets.QA_SUPABASE_DB_URL }}
+
+      - name: E2E — tres oráculos (UI + DB + logs)
+        if: steps.guarda.outputs.hay_secrets == 'true'
         run: pnpm --filter qa e2e
         env:
-          QA_BASE_URL: ${{ secrets.QA_DEV_URL }} # o la URL del preview del PR
-          QA_CRITICIDAD: "P0|P1"
+          QA_BASE_URL: ${{ inputs.base_url }}
+          QA_CRITICIDAD: ${{ inputs.criticidad }}
           QA_SUPABASE_URL: ${{ secrets.QA_SUPABASE_URL }}
           QA_SUPABASE_SERVICE_ROLE: ${{ secrets.QA_SUPABASE_SERVICE_ROLE }}
-          QA_PASSWORD_ADMIN: ${{ secrets.QA_PASSWORD_ADMIN }}
-          QA_PASSWORD_EMPLEADO: ${{ secrets.QA_PASSWORD_EMPLEADO }}
+          QA_SUPABASE_DB_URL: ${{ secrets.QA_SUPABASE_DB_URL }}
+
       - name: Publicar evidencias
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: qa-evidencias
+          name: qa-evidencias-${{ github.job }}
           path: qa/evidencias/
           retention-days: 14

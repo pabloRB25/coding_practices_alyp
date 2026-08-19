@@ -1,21 +1,28 @@
-# qa-standard: v1 — manifiesto de pruebas del proyecto
+# qa-standard: v1.1 — manifiesto de pruebas del proyecto
 # Único archivo que cambia entre proyectos. Credenciales SIEMPRE por env var.
 qa-standard: v1
 proyecto: <nombre-del-proyecto>
 
+# permite_reset expresa el ALCANCE del reset, no un permiso booleano (P7):
+#   namespace → borra solo las filas marcadas como QA (tenant, prefijo, marca).
+#                Lícito aunque la base tenga datos reales conviviendo.
+#   ninguno   → el ambiente no recibe escrituras de QA.
+# `true` a secas ya no es válido: obliga a declarar hasta dónde llega el borrado.
+# Ojo: los valores son strings a propósito — `no` en YAML se parsea como el
+# booleano false, y mezclar tipos en el mismo campo rompe al consumidor.
 ambientes:
   dev:
     base_url: ${QA_DEV_URL}
     db: supabase            # proyecto Supabase de desarrollo
-    permite_reset: true     # reset+seed permitidos
+    permite_reset: namespace   # aquí corre el Gate STG — reset acotado a QA
   preview:
     base_url: ${QA_PREVIEW_URL}   # la inyecta el deploy de Vercel
     db: branch              # Supabase branch efímero (o el proyecto dev)
-    permite_reset: true
+    permite_reset: namespace
   staging:
     base_url: ${QA_STG_URL}
     db: supabase
-    permite_reset: false    # solo lectura de datos existentes + flujos no destructivos
+    permite_reset: ninguno  # el Gate MAIN solo LEE de acá (G5): smoke P0 no destructivo
   prod:
     base_url: ${QA_PROD_URL}
     solo_lectura: true      # JAMÁS escritura ni service role contra prod
@@ -35,4 +42,4 @@ presupuestos:
   e2e_ci_minutos: 10          # límite duro del job de CI
   agentic_tokens_corrida: 200000
 
-# criticidades: P0 = smoke post-deploy + CI, P1 = CI, P2 = nocturno
+# criticidades: P0 = Gate STG + Gate MAIN · P1 = Gate STG · P2 = nocturno

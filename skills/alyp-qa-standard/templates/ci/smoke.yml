@@ -1,0 +1,81 @@
+# qa-standard: v1.1 — smoke P0 contra un despliegue ya hecho, REUTILIZABLE.
+#
+# Es el cuerpo del gate a producción (G5): el código ya pasó el gate de
+# pre-producción y no cambió, así que acá NO se re-valida código — se valida el
+# AMBIENTE (datos, variables, esquema aplicado) corriendo los flujos P0 contra
+# el despliegue real de pre-producción.
+#
+# SOLO LECTURA: no hay reset ni seed. El ambiente de pre-producción no recibe
+# escrituras de QA (qa-standard P6/P7), así que los specs P0 que corren acá
+# deben ser no destructivos — se seleccionan por su tag, no por su suerte.
+name: Smoke P0 (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      base_url:
+        description: URL del despliegue a verificar (pre-producción).
+        required: true
+        type: string
+      timeout_minutos:
+        required: false
+        default: 15
+        type: number
+    outputs:
+      resultado:
+        description: '"ok" | "sin-secrets"'
+        value: ${{ jobs.smoke.outputs.resultado }}
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutos }}
+    outputs:
+      resultado: ${{ steps.guarda.outputs.hay_secrets == 'true' && 'ok' || 'sin-secrets' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Guarda — secrets QA
+        id: guarda
+        env:
+          QA_SUPABASE_URL: ${{ secrets.QA_SUPABASE_URL }}
+          QA_SUPABASE_SERVICE_ROLE: ${{ secrets.QA_SUPABASE_SERVICE_ROLE }}
+        run: |
+          faltantes=()
+          for nombre in QA_SUPABASE_URL QA_SUPABASE_SERVICE_ROLE; do
+            if [ -z "${!nombre}" ]; then faltantes+=("$nombre"); fi
+          done
+          if [ ${#faltantes[@]} -eq 0 ]; then
+            echo "hay_secrets=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "hay_secrets=false" >> "$GITHUB_OUTPUT"
+          echo "::warning title=Smoke sin ambiente::faltan ${faltantes[*]}"
+          echo "### ⏭️ Smoke P0 no corrió — faltan ${faltantes[*]}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Playwright — chromium
+        if: steps.guarda.outputs.hay_secrets == 'true'
+        run: pnpm exec playwright install chromium --with-deps
+
+      # Sin seed: el oráculo de DB lee, no escribe (P6).
+      - name: Smoke P0 contra el despliegue
+        if: steps.guarda.outputs.hay_secrets == 'true'
+        run: pnpm --filter qa e2e:p0
+        env:
+          QA_BASE_URL: ${{ inputs.base_url }}
+          QA_SUPABASE_URL: ${{ secrets.QA_SUPABASE_URL }}
+          QA_SUPABASE_SERVICE_ROLE: ${{ secrets.QA_SUPABASE_SERVICE_ROLE }}
+
+      - name: Publicar veredicto
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-veredicto
+          path: qa/evidencias/
+          retention-days: 30

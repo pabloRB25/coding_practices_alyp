@@ -55,19 +55,28 @@ qa/
 1. Copiá `templates/` → `qa/` del repo respetando la estructura de arriba
    (los templates de este skill son la referencia canónica, adaptá placeholders).
 2. Completá `qa/qa.config.yaml` con ambientes reales. Verificá dos veces:
-   prod `solo_lectura: true`, credenciales SOLO por env vars, nunca en el repo.
+   prod `solo_lectura: true`, staging `permite_reset: ninguno`, desarrollo
+   `permite_reset: namespace`, credenciales SOLO por env vars, nunca en el repo.
 3. Escribí el catálogo: los 3–5 flujos P0 primero, contra `flujos/_schema.md`.
    Pasos en lenguaje de negocio, NUNCA selectores.
 4. Seeds: `reset` + `seed` idempotentes (correr 2 veces = mismo estado) y
-   `personas.yaml`. El reset trunca SOLO tablas de negocio, jamás `auth.users`.
+   `personas.yaml`. El reset borra SOLO el namespace QA —tenant, prefijo o marca
+   declarada— con filtro explícito en cada DELETE/UPDATE (P7): nunca `TRUNCATE`,
+   nunca un `DELETE` sin `WHERE`, jamás `auth.users`. Así es lícito correrlo
+   contra la base de desarrollo aunque tenga datos reales conviviendo.
 5. E2E: registrá `qa` como paquete del workspace (`pnpm-workspace.yaml`:
    `- qa`), copiá `templates/package.json` (declara deps y los scripts
    `seed`/`e2e` que usa el CI) y `e2e/` (config + `soporte/`). 1 spec por YAML
    del catálogo: naming, tags y mapeo según `templates/e2e/flujos/ejemplo.spec.ts`.
 6. Smoke agéntico: `agentic/smoke.md` tal cual (es un contrato, no editarlo por proyecto;
    lo variable vive en `qa.config.yaml`).
-7. CI: `templates/ci/qa-e2e.yml` → `.github/workflows/`. Respetá el presupuesto
-   de minutos del config (falla el job si lo excede).
+7. CI: copiá `templates/ci/qa-e2e.yml` y `templates/ci/smoke.yml` →
+   `.github/workflows/`. Son **reutilizables** (`workflow_call`): no disparan
+   solos, los invocan los gates de promoción (`gate-stg.yml` / `gate-main.yml`
+   del skill `alyp-new-project`). Esto es lo que hace que los flujos cuenten
+   dentro del check requerido de la rama — un workflow que dispara por su cuenta
+   no bloquea la promoción, y un gate que no bloquea es telemetría (G3).
+   Respetá el presupuesto de minutos del config (falla el job si lo excede).
 8. Agregá `qa/evidencias/` al `.gitignore` y el sello `qa-standard: v1` al
    CLAUDE.md del proyecto (creá ambos archivos con contenido mínimo si no existen).
 
@@ -75,9 +84,12 @@ qa/
 
 | Criticidad | Dónde corre | Presupuesto |
 |---|---|---|
-| P0 | CI en cada PR + smoke agéntico post-deploy | CI ≤ presupuesto del config |
-| P1 | CI en cada PR (o pre-merge si no da el presupuesto) | ídem |
+| P0 | Gate STG (develop→staging) + Gate MAIN (smoke solo-lectura) + smoke agéntico post-deploy | CI ≤ presupuesto del config |
+| P1 | Gate STG | ídem |
 | P2 | Nocturno (cron) + exploratorio agéntico | tokens del config |
+
+Los P0 que corren en el Gate MAIN van contra el deploy real de staging **sin
+reset ni seed**: tienen que ser no destructivos (P6/P7).
 
 ## Errores comunes
 

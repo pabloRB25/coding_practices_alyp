@@ -73,32 +73,56 @@ vercel env add NEXT_PUBLIC_SUPABASE_URL \
 
 ---
 
-## Flujo de deployment
+## Flujo de deployment — los 3 gates
+
+Perfil next·supabase·vercel del modelo de qa-standard §Promoción entre ambientes.
+Diseño: `docs/specs/2026-08-19-modelo-3-gates-design.md`.
 
 ```
-Desarrollador trabaja en feature/xxx
+Desarrollador (o agente) trabaja en feature/xxx
+        │
+        ▼
+GATE LOCAL — `pnpm verify:full`, en la máquina. NO bloquea.
+  - typecheck + lint + tests + build
+  - E2E P0+P1 con los 3 oráculos contra Supabase DEV (namespace QA)
+  - Mismo set exacto que el Gate STG: existe para que el fallo aparezca
+    en ~6 min acá y no en ~15 min en el PR (code-standard I2).
+  - Docker (`supabase start`) es OPCIONAL: apuntar QA_SUPABASE_DB_URL a
+    localhost:54322 si se prefiere trabajar aislado.
         │
         ▼
 PR → develop
-  - CI corre: pnpm verify (typecheck + lint + test)
-  - CI corre: pnpm build
-  - CI corre: pnpm audit --audit-level=high
+  - Gate DEV (~4 min): verify + build. NO bloqueante — red mínima para que
+    develop no acumule roto entre promociones.
   - Vercel deploy: Preview (develop branch) → Supabase DEV
         │
         ▼
-PR → staging (cuando feature está lista para QA)
-  - Mismos CI checks
+PR → staging  ·  GATE STG — BLOQUEANTE (~12-15 min)
+  - verify + build + pnpm audit --audit-level=high
+  - Esquema desde vacío: las migraciones se aplican sobre un Postgres limpio
+    del runner. Aplicarlas sobre una base que ya las tiene no prueba nada.
+  - E2E P0+P1 con los 3 oráculos contra Supabase DEV (namespace QA)
+  - Serializado por repo: el namespace QA de DEV es compartido.
+  - Check requerido: `Gate STG`
   - Vercel deploy: Preview (staging branch) → Supabase STAGING
   - Migraciones aplicadas manualmente a STAGING:
     supabase db push --db-url $DIRECT_URL_STAGING
         │
         ▼
-PR → main (después de validación en staging)
-  - Mismos CI checks + 1 approval requerida
+PR → main  ·  GATE MAIN — BLOQUEANTE (~5 min)
+  - verify + build
+  - Smoke P0 SOLO LECTURA contra el deploy real de staging: no re-valida el
+    código (no cambió), valida el AMBIENTE — datos, env vars, esquema.
+  - Check requerido: `Gate MAIN` + 1 approval + enforce_admins
   - Vercel deploy: Production → Supabase PROD
   - Migraciones aplicadas ANTES del merge:
     supabase db push --db-url $DIRECT_URL_PROD
 ```
+
+> El nombre del check (`Gate STG` / `Gate MAIN`) es parte del contrato de
+> bloqueo. Si el job se renombra y la branch protection no, el check requerido
+> deja de reportar: el PR queda esperando para siempre, que **no** es lo mismo
+> que pasar. Se cambian juntos, en el mismo PR.
 
 ---
 

@@ -23,7 +23,9 @@ Pruebas automatizadas de flujos de negocio, agnósticas de stack. El "cómo"
   espacio de nombres propio de QA (tenant, prefijo o marca declarada), nunca por
   tabla completa. Con esa cota, reset+seed es lícito contra el ambiente de
   desarrollo aunque comparta base con datos reales. Pre-producción y producción
-  no reciben escrituras de QA (P6).
+  no reciben escrituras de QA (P6). Cada ambiente declara el **alcance** de su
+  reset (`namespace` o `ninguno`), no un permiso booleano: un booleano no dice
+  hasta dónde llega el borrado, que es justamente lo que hay que acotar.
 
 ## Criticidades
 
