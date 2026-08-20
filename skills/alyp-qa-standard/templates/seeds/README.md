@@ -5,10 +5,13 @@ ser idempotentes: correrlos dos veces seguidas deja la DB exactamente igual.
 
 ## Archivos
 
-- `reset.sql` — trunca/limpia SOLO tablas de negocio del esquema del proyecto.
+- `reset.sql` — borra SOLO el namespace QA (tenant, prefijo o marca declarada)
+  dentro de las tablas de negocio: cada `DELETE`/`UPDATE` lleva su filtro, nunca
+  `TRUNCATE` ni un `DELETE` sin `WHERE` (qa-standard P7). Con esa cota es lícito
+  correrlo contra la base de desarrollo aunque conviva con datos reales.
   PROHIBIDO tocar `auth.users`, esquemas de Supabase (`auth`, `storage`) o
   cualquier tabla fuera del dominio. Debe negarse a correr si el ambiente no
-  tiene `permite_reset: true` (el runner lo valida antes de ejecutar).
+  declara `permite_reset: namespace` (el runner lo valida antes de ejecutar).
 - `seed.sql` (o `seed.ts` si necesita lógica) — datos canónicos con `insert ...
   on conflict do update` (upserts). IDs fijos y legibles (`qa-empresa-1`) para
   que los flujos y las aserciones los referencien.

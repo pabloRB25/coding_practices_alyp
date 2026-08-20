@@ -62,10 +62,10 @@ Ninguno reescribe el output del otro.
 **Pasos clave**: `gh repo create` (privado, clone, gitignore Node); ramas `develop` y `staging` pusheadas; `.github/CODEOWNERS` (archivos críticos solo @pablopr).
 **Gate — no avances si falla**: repo creado, 3 ramas en origin, CODEOWNERS commiteado.
 
-### FASE 2b — CI Workflow + Branch Protection → `references/fase-02b-ci-branch-protection.md`
-**Objetivo**: CI antes que protección — el workflow debe existir en el repo ANTES de configurar status checks, o quedarán pendientes para siempre.
-**Pasos clave**: crear `.github/workflows/ci.yml` (asset `assets/ci/ci-turborepo.yml`; variante simple usa `pnpm run verify/build`); branch protection en main/staging/develop (asset `assets/ci/branch-protection.sh`); secrets `CONTEXT_BOT_TOKEN`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF_DEV/PROD`.
-**Gate — no avances si falla**: CI workflow en `develop`, branch protection activa en las 3 ramas.
+### FASE 2b — Gates de promoción + Branch Protection → `references/fase-02b-ci-branch-protection.md`
+**Objetivo**: workflows antes que protección — el job debe existir en el repo ANTES de exigirlo como status check, o quedará pendiente para siempre.
+**Pasos clave**: los 3 gates de qa-standard §Promoción entre ambientes — `Gate DEV` (asset `assets/ci/ci-turborepo.yml`, PR a develop, no bloquea), `Gate STG` (`assets/ci/gate-stg.yml`, PR a staging, bloquea) y `Gate MAIN` (`assets/ci/gate-main.yml`, PR a main, bloquea); los dos últimos invocan los reutilizables `qa-e2e.yml` y `smoke.yml` del skill `alyp-qa-standard`. Branch protection con `assets/ci/branch-protection.sh` (contextos `Gate STG` / `Gate MAIN` — el nombre ES el contrato de bloqueo, G4). Secrets: `CONTEXT_BOT_TOKEN`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF_DEV/PROD`, y los `QA_*` sin los cuales los flujos quedan skipped.
+**Gate — no avances si falla**: los 3 workflows en `develop`, branch protection activa en las 3 ramas, y los contextos requeridos coincidiendo exactamente con los nombres de los jobs agregadores.
 
 ### FASE 2c — Supply-chain & seguridad del repo → assets `assets/github-supply-chain/`
 **Objetivo**: hardening de supply-chain "grado banca" desde el día 1 (referencia: el `.github/` open-source de Santander AI). Son assets que se copian tal cual al repo (sustituyendo `$SECURITY_EMAIL`, `$CLIENT_NAME`).

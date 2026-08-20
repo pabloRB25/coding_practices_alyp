@@ -16,7 +16,7 @@ el smoke agéntico lo ejecuta literalmente.
 | `aserciones.ui` | sí | qué debe ver el usuario, verificable a ojo |
 | `aserciones.db` | sí (si el flujo persiste) | lista de `{nombre, query, espera}`; SQL parametrizado con `:params` |
 | `aserciones.logs` | sí | por defecto: "cero logs nivel error con el traceId de la corrida" |
-| `ambientes_permitidos` | sí | subconjunto de los ambientes del config; si el flujo ESCRIBE, solo ambientes con `permite_reset: true` (nunca `prod`) |
+| `ambientes_permitidos` | sí | subconjunto de los ambientes del config; si el flujo ESCRIBE, solo ambientes con `permite_reset: namespace` (nunca `prod` ni pre-producción) |
 | `bugs_cubiertos` | no | ids/commits de bugs pasados que este flujo re-verifica (regresión con memoria) |
 | `depende_de` | no | `id` de otro flujo cuyo estado final necesita este flujo (ver "Dependencias entre flujos") |
 
