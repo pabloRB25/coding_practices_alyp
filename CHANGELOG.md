@@ -1,5 +1,57 @@
 # Changelog
 
+## v3.0.0 — 2026-08-28
+
+### El loop orquestador baja a tier obrero; el razonador pasa a firmante invocado
+
+ADR: `docs/adr/0001-loop-sonnet-validador-opus.md`. Consultado el tier juez
+(Fable) vía agente `consultor`: veredicto *viable-con-recortes*.
+
+Medido sobre 95.034 requests únicos (may–ago 2026, deduplicados por
+`(requestId, message.id)`, separando `isSidechain` antes de agregar): el **loop
+concentraba el 83,8% del costo** —su `cache_read` solo es el **57,1% del
+total**— contra **5,6% de los subagentes Opus**, que ya corrían acotados a ~90K
+de contexto. Mover ejecución entre tiers ahorraba 4,5%; bajar el loop de tier
+ahorra 67% bruto. **No se paga por pensar: se paga por releer.**
+
+- **`devstral-orchestration` → v3.0.0.** El loop es Sonnet: rutea, descompone en
+  contratos, despacha olas, corre G1–G3 y sintetiza. **No firma.** Opus deja de
+  orquestar y pasa a firmar por invocación en tres puntos: G0, diff de riesgo 2
+  (de a uno) y veredicto de merge. v2.9 archivada en `versions/v2.9/`.
+- **`alyp-exec` → v1.1.0.** Fase **F0b · G0** nueva; regla dura **R7** ("no
+  firmás tus propios contratos"); riesgo 2 pasa a firma final del razonador, no
+  borrador; ledger gana `firmas/<ola>.md`; métricas de cobertura de firma y
+  alarma de G0 liviano.
+- **`references/gates.md`**: gate **G0** (juicio, sobre el contrato, antes de
+  ejecutar) + **piso de riesgo mecánico por rutas** — migraciones, auth, RLS,
+  middleware, secretos, webhooks y pagos fuerzan riesgo 2 por comando.
+- **`contracts/orchestration.md` → v1.3**, dos enmiendas y dos invariantes:
+  - **Invariante 2 (enmendado)**: "el veredicto nunca baja del orquestador" →
+    "**nunca baja del tier razonador**". La letra vieja ataba el veredicto a un
+    rol de loop que el contrato ya no reserva al razonador; el espíritu se
+    conserva.
+  - **§Degradación (enmendada)**: con loop obrero, "consulta obligatoria al
+    juez" → **firma obligatoria del razonador invocado**; el juez vuelve a ser
+    desempate. Y se agrega: sin tier razonador, riesgo 2 **se detiene**.
+  - **Invariante 8 (nuevo)**: *respecto del contrato de tarea, el loop es la
+    parte juzgada*. El invariante 7 protege el resultado contra el ejecutor;
+    nada protegía el criterio contra quien lo escribe. Firma previa (G0), el
+    firmante re-ejecuta lo que firma, y piso de riesgo mecánico.
+  - **Invariante 9 (nuevo)**: la firma **no es agregable donde el gate no
+    alcanza** — riesgo 0-1 agrupa por ola; riesgo 2 se firma de a uno.
+- **`contracts/execution.md`**: fila de firmante G0; las filas `opus` dejan de
+  ser "borrador que el orquestador aprueba" y pasan a **firma final**.
+- **`capacity.example.yaml` → version 3**, `orquestador: claude-sonnet-5`. Ese
+  campo es el **switch de reversión**: volverlo a `claude-opus-4-8` más revertir
+  el commit del protocolo devuelve el sistema a v2.10.
+
+> ⚠️ **Pendiente de piloto.** Fable declaró confianza alta en la estructura y
+> **media en la proyección de costo**: falta correr `token-audit.sh` sobre un
+> plan piloto con loop Sonnet. Los contrafácticos asumen los mismos tokens a
+> otro precio, y un loop Sonnet podría necesitar más turnos. **El ahorro es una
+> hipótesis con aritmética sólida, no un resultado.** Condición de reversión
+> pre-acordada en el ADR.
+
 ## v2.3.0 — 2026-08-16
 
 ### `alyp-exec` v1.0.0 — el loop de ejecución, y el invariante de evidencia que faltaba

@@ -1,6 +1,6 @@
 ---
 name: explorador
-description: Investiga y mapea el codebase (SOLO lectura) para responder preguntas del orquestador sin ensuciar su contexto. Despachalo (desde el orquestador Opus) para research, búsqueda de convenciones, o ubicación de código; con override model "haiku" para búsquedas amplias baratas o triage de logs. Devuelve conclusiones con referencias archivo:línea, no volcados de archivos.
+description: Investiga y mapea el codebase (SOLO lectura) para responder preguntas del orquestador sin ensuciar su contexto. Despachalo (desde el loop orquestador) para research, búsqueda de convenciones, o ubicación de código; con override model "haiku" para búsquedas amplias baratas o triage de logs. Devuelve conclusiones con referencias archivo:línea, no volcados de archivos.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---

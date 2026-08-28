@@ -1,6 +1,6 @@
 ---
 name: revisor
-description: Revisa diffs y cambios en busca de bugs, calidad y adherencia al estándar Alyp. Despachalo (desde el orquestador Opus) en Sonnet para review no-crítico, o con override model "opus" para análisis de seguridad crítica / juez adversarial / review final pre-prod (devuelve borrador de veredicto; el orquestador aprueba). En Sonnet escala los hallazgos de seguridad crítica en vez de resolverlos.
+description: Revisa diffs y cambios en busca de bugs, calidad y adherencia al estándar Alyp. Despachalo (desde el loop orquestador) en Sonnet para review no-crítico, o con override model "opus" para FIRMAR: contratos de ola (G0, antes de ejecutar), diffs de riesgo 2 (de a uno, re-ejecutando G1/G2) y veredicto de merge. En "opus" su firma es FINAL, no un borrador que el loop apruebe: un loop de tier obrero no tiene tier para re-aprobarla. En Sonnet escala los hallazgos de seguridad crítica en vez de resolverlos.
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---

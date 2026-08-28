@@ -1,12 +1,19 @@
 # capacity.yaml — perfil de capacidad del ENTORNO (máquina/equipo), no doctrina.
 # Instalar como ~/.claude/capacity.yaml y ajustar. El protocolo (SKILL.md) habla
 # de tiers; este archivo dice qué modelo y qué límites tiene CADA tier en TU entorno.
-version: 2                         # v2 = doctrina v2.7.1: Opus orquesta SIEMPRE
-orquestador: claude-opus-4-8       # loop principal (modo estándar del equipo)
+version: 3                         # v3 = doctrina v3.0: Sonnet orquesta, Opus FIRMA
+# ── El switch de reversión del rediseño v3.0 ────────────────────────────────
+# Volver a `claude-opus-4-8` acá + revertir el commit del protocolo devuelve el
+# sistema a v2.10 (loop Opus). Condición de reversión pre-acordada: si sube de
+# forma sostenida la tasa de bugs post-merge o los ❌ de G3 en las primeras olas.
+# Ver docs/adr/0001-loop-sonnet-validador-opus.md.
+orquestador: claude-sonnet-5       # loop principal: rutea, descompone, corre G1-G3. NO firma.
 tiers:
   juez: claude-fable-5             # SOLO vía agente `consultor` (invocación explícita)
-  razonador: claude-opus-4-8       # = orquestador; subagentes Opus para análisis aislado
-  obrero: claude-sonnet-5          # implementación, research, review normal
+  razonador: claude-opus-4-8       # FIRMANTE invocado: G0 (contratos de ola), riesgo 2, merge.
+                                   # Ya no es el loop. Entra con contexto fresco y paquete
+                                   # acotado; fuera de esos 3 puntos no toca el camino crítico.
+  obrero: claude-sonnet-5          # = orquestador; y ejecución: implementación, research, review
   barato: claude-haiku-4-5         # búsquedas amplias, triage; fallback del local saturado
   # REQUISITO DURO del tier mecánico: tool calling ESTRUCTURADO (msg.tool_calls).
   # Sin él, el ejecutor no escribe nada y reporta éxito igual (falso positivo).

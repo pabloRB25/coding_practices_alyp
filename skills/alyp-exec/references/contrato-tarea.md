@@ -9,7 +9,7 @@ alcanza para trabajar, la tarea no estaba lista para despacharse.
 ## Tarea <id>
 objetivo:      <una frase verificable, no cualitativa>
 nivel:         opus | sonnet | haiku
-riesgo:        0 | 1 | 2
+riesgo:        0 | 1 | 2        # ≥1 exige firma G0 antes de despachar
 archivos:      <allowlist explícita — NO tocar nada fuera de esta lista>
 contratos:     <firmas, tipos e interfaces PEGADAS acá, no referenciadas>
 verificacion:  <comando literal>
@@ -77,6 +77,18 @@ trabajo es lo que vuelve falsable el veredicto.
 | **2** | auth, sesión/JWT, RLS, secretos, pagos, PII, migraciones, borrados, cualquier cosa irreversible. |
 
 Ante duda, subí uno. El costo de un error supera el ahorro.
+
+**No lo decide solo tu juicio.** Dos mecanismos lo acotan, porque el riesgo es
+la palanca que decide cuánta revisión recibe el cambio — y el loop que la asigna
+es también el que se beneficia de asignarla baja:
+
+1. **Piso mecánico por rutas** (`references/gates.md` §G0): si la allowlist toca
+   migraciones, auth, RLS, middleware, secretos, webhooks o pagos, el riesgo es
+   **2 automático**. Es un comando sobre la allowlist, no una apreciación.
+2. **Firma G0**: todo contrato de riesgo ≥1 lo firma el tier razonador invocado
+   **antes** de despacharse la ola. Puede devolver `subir riesgo a N`.
+
+Contrato `orchestration` invariante 8.
 
 ## Ejemplo completo
 
