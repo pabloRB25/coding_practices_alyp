@@ -20,6 +20,15 @@ sugerencia, la endurece.
 
 El hook AVISA, no compacta: un UserPromptSubmit sólo puede emitir systemMessage,
 no puede ejecutar /compact. La compactación la hace la persona.
+
+Por eso el aviso incluye el ARGUMENTO sugerido de `/compact`, listo para pegar.
+`/compact` pelado resume sin criterio y se lleva puestas las decisiones y los caminos
+ya descartados — el síntoma es reintentar un enfoque que ya se había rechazado con
+motivo. Ese empujón tiene que estar acá y no en el hook PreCompact: PreCompact corre
+cuando la compactación YA se disparó (tarde para elegir el argumento) y además no
+admite `hookSpecificOutput`, así que no puede inyectar nada al prompt de compactación
+(verificado 2026-08-27 — ver precompact-preserve.py).
+
 Medir la altura real con: ~/.claude/scripts/token-audit.sh
 """
 import json
@@ -31,6 +40,12 @@ THRESHOLD = 150_000       # piso: por debajo de esto, silencio
 BUCKET = 150_000          # avisa a 150K, 300K, 450K … una vez por tramo por sesión
 HARD_CEILING = 300_000    # a partir de acá el mensaje deja de ser una sugerencia
 TAIL_BYTES = 262_144      # solo leemos la cola del transcript (eficiente)
+
+# Listo para copiar y pegar. Corto a propósito: un argumento que no se pega, no se usa.
+COMPACT_SUGERIDO = (
+    "/compact preservá decisiones y su motivo, caminos ya descartados, "
+    "criterios de aceptación pendientes y correcciones del usuario"
+)
 
 
 def emit(system_message=None):
@@ -104,14 +119,16 @@ def main():
     if ctx >= HARD_CEILING:
         emit(
             f"🔴 Contexto ~{k}K — pasaste el techo de {HARD_CEILING // 1000}K. "
-            f"Cada turno acá cuesta ~4x lo que costaría a 150K, y se re-lee entero. "
-            f"COMPACTÁ YA: /compact <qué preservar>  (o /clear si arrancás algo nuevo). "
+            f"Cada turno acá cuesta ~4x lo que costaría a 150K, y se re-lee entero.\n"
+            f"COMPACTÁ YA (o /clear si arrancás algo nuevo). Pegá:\n"
+            f"   {COMPACT_SUGERIDO}\n"
             f"— aviso no bloqueante"
         )
     emit(
-        f"🟡 Contexto ~{k}K (piso {THRESHOLD // 1000}K). Buen momento para /compact "
+        f"🟡 Contexto ~{k}K (piso {THRESHOLD // 1000}K). Buen momento para compactar "
         f"cuando cierres lo que estás haciendo — no en medio de un debug. "
-        f"Cuanto más cerca de {THRESHOLD // 1000}K compactes, más rinde. "
+        f"Cuanto más cerca de {THRESHOLD // 1000}K compactes, más rinde. Pegá:\n"
+        f"   {COMPACT_SUGERIDO}\n"
         f"— aviso no bloqueante"
     )
 

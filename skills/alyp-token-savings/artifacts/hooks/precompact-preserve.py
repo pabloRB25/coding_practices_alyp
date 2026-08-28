@@ -7,7 +7,7 @@ compactar más veces de forma lossy. Sin esto, bajar el umbral duplica la frecue
 de pérdida de decisiones y de caminos ya descartados — y el síntoma es reintentar
 un enfoque que una sesión anterior había rechazado con motivo.
 
-Hace tres cosas, en orden de robustez:
+Hace dos cosas, en orden de robustez:
 
   1. LEDGER EN DISCO (lo único que no depende de nada más). Antes de que el contexto
      se destruya, deja una entrada en ~/.claude/compact-log/<sesión>.md con el momento,
@@ -16,11 +16,21 @@ Hace tres cosas, en orden de robustez:
      desde caídas de cache_read, que fue el error de método del 2026-08-28
      (el 89,8% de esas "caídas" eran subagentes intercalados, no compactaciones).
 
-  2. additionalContext con la checklist de preservación (best-effort: si el harness
-     lo incorpora al prompt de compactación, mejor; si no, no rompe nada).
-
-  3. Si la compactación es MANUAL y se disparó sin instrucciones, avisa que
+  2. Si la compactación es MANUAL y se disparó sin instrucciones, avisa que
      `/compact <qué preservar>` rinde mucho más que `/compact` pelado.
+
+⚠️ PreCompact NO ACEPTA `hookSpecificOutput` — verificado 2026-08-27, en vivo.
+Una versión anterior devolvía `{"hookSpecificOutput": {"hookEventName": "PreCompact",
+"additionalContext": …}}` para inyectar una checklist de preservación. El harness
+valida la salida contra un esquema donde `PreCompact` no está en el enum de
+`hookEventName`, y al fallar **descarta el payload ENTERO** — se perdió también el
+`systemMessage` — además de imprimir el esquema completo como error. Para PreCompact
+sólo hay campos top-level: `systemMessage`, `decision`, `reason`, `continue`,
+`stopReason`, `suppressOutput`, `terminalSequence`. No hay forma de inyectar contexto
+en el prompt de compactación desde acá: lo único que la dirige es el argumento de
+`/compact`, que lo escribe la persona. Por eso el empujón a usar ese argumento vive
+en `context-guard.py` (UserPromptSubmit, a 150K/300K) — que dispara ANTES, cuando
+todavía se puede actuar; acá sólo queda el recordatorio tardío.
 
 NUNCA BLOQUEA. El CLI puede abortar una compactación si un PreCompact hook falla
 ("Compaction blocked by PreCompact hook"), así que acá todo va envuelto y el exit
@@ -33,15 +43,12 @@ from datetime import datetime
 
 LOG_DIR = os.path.expanduser("~/.claude/compact-log")
 
-PRESERVAR = """Al compactar, preservá explícitamente:
-1. DECISIONES TOMADAS y su motivo (no solo el resultado).
-2. CAMINOS YA DESCARTADOS y por qué — es lo que evita reintentarlos.
-3. CRITERIOS DE ACEPTACIÓN pendientes y qué falta para cumplirlos.
-4. Estado del ledger de la ola en curso: qué tareas cerraron y cuáles no.
-5. Correcciones de rumbo del usuario (valen más que el resto del historial).
-6. Rutas de archivo y comandos exactos ya verificados que sigan siendo necesarios.
-Podés descartar: salidas de herramientas ya consumidas, exploración que no
-concluyó en nada, y reformulaciones de algo que ya quedó decidido."""
+# Argumento sugerido para /compact. Corto a propósito: tiene que poder copiarse
+# y pegarse de un tirón. La versión larga de qué preservar no cabe en un aviso.
+COMPACT_SUGERIDO = (
+    "/compact preservá decisiones y su motivo, caminos ya descartados, "
+    "criterios de aceptación pendientes y correcciones del usuario"
+)
 
 
 def emit(payload=None):
@@ -115,23 +122,19 @@ def main():
 
     anotar_ledger(sid, trigger, ctx, instrucciones)
 
-    payload = {
-        "hookSpecificOutput": {
-            "hookEventName": "PreCompact",
-            "additionalContext": PRESERVAR,
-        }
-    }
-
-    # Compactación manual sin instrucciones: la ocasión de mejorarla es ahora.
+    # Compactación manual sin instrucciones: esta ya se pierde, pero la próxima no.
+    # Sólo `systemMessage` — ver la advertencia del docstring sobre hookSpecificOutput.
     if trigger == "manual" and not instrucciones.strip():
         k = round(ctx / 1000) if ctx else 0
-        payload["systemMessage"] = (
-            f"💡 Compactando ~{k}K sin instrucciones. La próxima, "
-            f"`/compact preservá decisiones, caminos descartados y criterios pendientes` "
-            f"conserva bastante más de lo que importa."
-        )
+        cuanto = f"~{k}K" if k else "sin poder medir el contexto"
+        emit({
+            "systemMessage": (
+                f"💡 Compactando {cuanto} sin instrucciones. La próxima, pegá:\n"
+                f"   {COMPACT_SUGERIDO}"
+            )
+        })
 
-    emit(payload)
+    emit()
 
 
 if __name__ == "__main__":

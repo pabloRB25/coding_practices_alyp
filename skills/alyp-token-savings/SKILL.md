@@ -16,7 +16,7 @@ de Claude Code en `~/.claude`. Idempotente: reinstalar re-sincroniza sin romper 
 |---|---|---|
 | `artifacts/statusline-context.py` | `~/.claude/` | Barra de estado: `modelo · ⛁ NK (P%) · ⎇ rama · $costo`, color 🟢/🟡/🔴 a los 200K |
 | `artifacts/hooks/context-guard.py` | `~/.claude/hooks/` | UserPromptSubmit **no-bloqueante**: banda 150K/300K, 1 aviso por tramo por sesión |
-| `artifacts/hooks/precompact-preserve.py` | `~/.claude/hooks/` | PreCompact **no-bloqueante**: checklist de preservación + ledger en disco |
+| `artifacts/hooks/precompact-preserve.py` | `~/.claude/hooks/` | PreCompact **no-bloqueante**: ledger de compactaciones en disco + recordatorio de `/compact <qué preservar>` |
 | `artifacts/token-audit.sh` | `~/.claude/scripts/` | Mide el consumo real de contexto desde los transcripts |
 | `artifacts/RTK.md` | `~/.claude/` | Política: usar `rtk` explícito siempre (el hook PreToolUse no reescribe) |
 | keys `statusLine` + `UserPromptSubmit` + `PreCompact` | `~/.claude/settings.json` | Merge preservando lo existente (respalda antes) |
@@ -45,23 +45,33 @@ el instalador lo detecta y, si falta, saltea el cableado con aviso.
 ## Cómo auditar (sin reinstalar)
 
 ```bash
-test -f ~/.claude/statusline-context.py && echo "statusline OK"
-test -f ~/.claude/hooks/context-guard.py && echo "hook OK"
+test -f ~/.claude/statusline-context.py     && echo "statusline OK"
+test -f ~/.claude/hooks/context-guard.py       && echo "ctx-guard OK"
+test -f ~/.claude/hooks/precompact-preserve.py && echo "precompact OK"
 # Windows sin Git Bash usa `python`; macOS/Linux `python3`.
 PY=$(command -v python3 || command -v python)
 "$PY" -c "import json,os;d=json.load(open(os.path.expanduser('~/.claude/settings.json')));\
+h=d.get('hooks',{});\
+w=lambda ev,s: any(s in k.get('command','') for b in h.get(ev,[]) for k in b.get('hooks',[]));\
 print('statusLine:', 'statusLine' in d);\
-print('ctx-guard:', any('context-guard' in h.get('command','') \
-for b in d.get('hooks',{}).get('UserPromptSubmit',[]) for h in b.get('hooks',[])))"
+print('ctx-guard:', w('UserPromptSubmit','context-guard'));\
+print('precompact:', w('PreCompact','precompact-preserve'))"
 ```
 
 ## Principios (por qué existe)
 
 - El costo real en sesiones largas es el **cache-read** (todo el prefijo se re-lee cada
   turno, y por cada subagente). La statusline lo hace **visible siempre**; el hook
-  recuerda **compactar antes** del premium long-context de Opus [1M] (>200K).
-- El hook **nunca bloquea** (`exit 0` siempre): un `exit 2` en UserPromptSubmit cuelga la
-  sesión. Solo avisa vía `systemMessage`, throttled por tramo de 100K.
+  recuerda **compactar antes**, con la banda 150K (piso) / 300K (techo duro).
+- Los hooks **nunca bloquean** (`exit 0` siempre): un `exit 2` en UserPromptSubmit cuelga
+  la sesión, y un PreCompact que falla **aborta la compactación**. Solo avisan vía
+  `systemMessage`, throttled por tramo de 150K.
+- **El empujón vive en `context-guard.py`, no en `precompact-preserve.py`.** PreCompact
+  corre cuando la compactación ya se disparó — tarde para elegir el argumento — y además
+  no admite `hookSpecificOutput` (verificado 2026-08-27: el harness descarta el payload
+  entero y escupe el esquema como error). Lo único que dirige una compactación es el
+  argumento de `/compact`, que lo escribe la persona; por eso el aviso de 150K/300K lo
+  trae listo para pegar.
 - **RTK explícito**: el hook `PreToolUse` intenta reescribir comandos pero el harness no
   aplica el `updatedInput` de forma confiable (~0.9% cobertura). Por eso la política es
   prependar `rtk` a mano en lecturas/búsquedas/git/build. Aplica al agente y a subagentes.
@@ -72,7 +82,9 @@ for b in d.get('hooks',{}).get('UserPromptSubmit',[]) for h in b.get('hooks',[])
   tokens exactos en vez de %, cambiar umbrales de color) y reinstalar.
 - Umbral del aviso → `THRESHOLD` / `BUCKET` / `HARD_CEILING` en
   `artifacts/hooks/context-guard.py` (default: piso 150K, tramo 150K, techo duro 300K).
-- Qué preservar al compactar → `PRESERVAR` en `artifacts/hooks/precompact-preserve.py`.
+- Texto sugerido para `/compact` → `COMPACT_SUGERIDO`, definido en ambos hooks
+  (`context-guard.py` lo muestra a tiempo; `precompact-preserve.py`, tarde). Si lo
+  cambiás, cambialo en los dos.
 
 ## Cómo medir si está funcionando
 
