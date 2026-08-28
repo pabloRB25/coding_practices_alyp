@@ -2,7 +2,7 @@
 """
 UserPromptSubmit hook — AVISO de contexto (NO bloquea nunca).
 
-Banda de trabajo 150K – 300K (plan de optimización de tokens, 2026-08-28):
+Banda de trabajo 150K – 300K (plan de optimización de tokens, 2026-08-27):
 
   150K  → piso de aviso:  "compactá cuando cierres lo que estás haciendo"
   300K+ → techo duro:     "compactá YA"

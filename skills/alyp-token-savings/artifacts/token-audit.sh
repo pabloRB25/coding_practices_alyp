@@ -59,7 +59,7 @@ echo "▸ Extrayendo tool_use ..."
 # TRAMPA 4: los flags de encadenado / `cd` suelto se calculan sobre el comando COMPLETO,
 # nunca sobre una versión truncada. Truncar a N caracteres esconde los `&&` que caen
 # fuera de la ventana y hace parecer suelto un comando que sí encadena (verificado
-# 2026-08-28: con 60 chars daba 13.229 `cd` sueltos; con el comando entero, 2.290).
+# 2026-08-27: con 60 chars daba 13.229 `cd` sueltos; con el comando entero, 2.290).
 find "$PROJECTS" -name '*.jsonl' -print0 \
 | xargs -0 -P 8 -n 40 sh -c 'jq -r "
     select(.type==\"assistant\") | (.requestId // \"-\") as \$r

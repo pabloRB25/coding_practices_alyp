@@ -125,7 +125,7 @@ dejar correr hasta 300K, así que el escalón de 300K endurece el mensaje en vez
    para herramientas, contar **IDs únicos de `tool_use`** por request.
 3. **Separar `isSidechain` antes de cualquier serie temporal.** Los subagentes corren a
    ~128K y el loop principal a ~266K: mezclarlos produce una serie plana que parece
-   compactación automática y no lo es (error cometido y corregido el 2026-08-28).
+   compactación automática y no lo es (error cometido y corregido el 2026-08-27).
 
 Y una trampa al analizar comandos: calcular "encadenado" o "`cd` suelto" sobre un comando
 **truncado** esconde los `&&` fuera de la ventana. Con 60 caracteres daban 13.229 `cd`

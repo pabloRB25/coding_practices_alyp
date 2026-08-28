@@ -14,7 +14,7 @@ Hace dos cosas, en orden de robustez:
      es $CLAUDE_CONFIG_DIR o, si no está seteada, ~/.claude — con el momento,
      el trigger y el tamaño del contexto. Sirve para dos cosas: reconstruir qué pasó,
      y MEDIR la altura real de compactación de forma directa — en vez de inferirla
-     desde caídas de cache_read, que fue el error de método del 2026-08-28
+     desde caídas de cache_read, que fue el error de método del 2026-08-27
      (el 89,8% de esas "caídas" eran subagentes intercalados, no compactaciones).
 
   2. Si la compactación es MANUAL y se disparó sin instrucciones, avisa que
