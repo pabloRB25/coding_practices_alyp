@@ -15,9 +15,11 @@ de Claude Code en `~/.claude`. Idempotente: reinstalar re-sincroniza sin romper 
 | Artefacto | Destino | Qué hace |
 |---|---|---|
 | `artifacts/statusline-context.py` | `~/.claude/` | Barra de estado: `modelo · ⛁ NK (P%) · ⎇ rama · $costo`, color 🟢/🟡/🔴 a los 200K |
-| `artifacts/hooks/context-guard.py` | `~/.claude/hooks/` | UserPromptSubmit **no-bloqueante**: avisa 1×/tramo de 100K al pasar 200K |
+| `artifacts/hooks/context-guard.py` | `~/.claude/hooks/` | UserPromptSubmit **no-bloqueante**: banda 150K/300K, 1 aviso por tramo por sesión |
+| `artifacts/hooks/precompact-preserve.py` | `~/.claude/hooks/` | PreCompact **no-bloqueante**: checklist de preservación + ledger en disco |
+| `artifacts/token-audit.sh` | `~/.claude/scripts/` | Mide el consumo real de contexto desde los transcripts |
 | `artifacts/RTK.md` | `~/.claude/` | Política: usar `rtk` explícito siempre (el hook PreToolUse no reescribe) |
-| keys `statusLine` + `UserPromptSubmit` | `~/.claude/settings.json` | Merge preservando lo existente (respalda antes) |
+| keys `statusLine` + `UserPromptSubmit` + `PreCompact` | `~/.claude/settings.json` | Merge preservando lo existente (respalda antes) |
 
 ## Cómo instalar
 
@@ -68,4 +70,36 @@ for b in d.get('hooks',{}).get('UserPromptSubmit',[]) for h in b.get('hooks',[])
 
 - Formato de la statusline → editar `artifacts/statusline-context.py` (sacar costo, mostrar
   tokens exactos en vez de %, cambiar umbrales de color) y reinstalar.
-- Umbral del aviso → `THRESHOLD` en `artifacts/hooks/context-guard.py` (default 200K).
+- Umbral del aviso → `THRESHOLD` / `BUCKET` / `HARD_CEILING` en
+  `artifacts/hooks/context-guard.py` (default: piso 150K, tramo 150K, techo duro 300K).
+- Qué preservar al compactar → `PRESERVAR` en `artifacts/hooks/precompact-preserve.py`.
+
+## Cómo medir si está funcionando
+
+```bash
+~/.claude/scripts/token-audit.sh                    # todo el histórico
+~/.claude/scripts/token-audit.sh --since 2026-09-01 # desde una fecha
+```
+
+La métrica principal es la **altura de compactación**: a qué tamaño de contexto se
+compacta en promedio. Medida en agosto 2026 era **388.723 tokens** — plena zona cara.
+Objetivo con la banda 150K/300K: **<200K**.
+
+El costo por request escala fuerte con el contexto: $0,059 (50-150K) → $0,127 (150-300K)
+→ $0,235 (300-500K) → $0,435 (500-800K). Compactar cerca de 150K rinde **2,6×** más que
+dejar correr hasta 300K, así que el escalón de 300K endurece el mensaje en vez de repetirlo.
+
+### Tres trampas del método de medición
+
+1. Extraer con `xargs -P N > archivo` **único corrompe el TSV** (escrituras interleavadas):
+   un archivo por proceso.
+2. Deduplicar por `requestId` a secas **descarta líneas** — un mensaje del asistente se
+   parte en varias entradas JSONL. Para `usage`, dedup por `(requestId, message.id)`;
+   para herramientas, contar **IDs únicos de `tool_use`** por request.
+3. **Separar `isSidechain` antes de cualquier serie temporal.** Los subagentes corren a
+   ~128K y el loop principal a ~266K: mezclarlos produce una serie plana que parece
+   compactación automática y no lo es (error cometido y corregido el 2026-08-28).
+
+Y una trampa al analizar comandos: calcular "encadenado" o "`cd` suelto" sobre un comando
+**truncado** esconde los `&&` fuera de la ventana. Con 60 caracteres daban 13.229 `cd`
+sueltos; con el comando entero, 2.290.

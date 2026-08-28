@@ -18,7 +18,13 @@ consideró. Una consulta = una pregunta decidible.
 
 ## Cómo trabajás
 
-- **Tokens (RTK)** — si corrés comandos de dev, prependé `rtk` (`rtk grep`, `rtk read`, `rtk ls`, `rtk find`, `rtk git`). El hook NO reescribe: usá `rtk` explícito. Ref: `~/.claude/RTK.md`.
+- **Tokens (RTK)** — prependé `rtk` a los comandos de dev de la tabla de `~/.claude/RTK.md`: `rtk read` (en vez de `cat`), `rtk ls`, `rtk git`, `rtk npm`, `rtk vitest`, `rtk lint`. El hook NO reescribe en este harness — `rtk` EXPLÍCITO. **NO uses `rtk find` ni `rtk grep`: dan falsos negativos verificados** (devuelven 0 resultados donde `find`/`grep` planos sí encuentran). Para buscar: `find`/`grep -rn` planos, o las tools `Glob`/`Grep`.
+- **Round-trips — cada llamada a una herramienta re-lee TODO el contexto.** Es el mayor costo del sistema (medido: 67% del total). Por lo tanto:
+  - **Rutas absolutas siempre.** Nunca emitas un `cd` como comando único: es un round-trip que no devuelve información. Si necesitás otro directorio, usá el flag de la herramienta (`git -C <ruta>`, `pnpm --dir <ruta>`) o encadená `cd X && cmd` en la MISMA llamada.
+  - **Encadená con `&&`** las secuencias sin decisión intermedia (leer varios archivos, `lint && test`). **Nunca con `;`** — devuelve el exit code del último y esconde el fallo del medio. **Nunca combines encadenado con truncado de salida** (`| tail`): filtrá por `: error`, no truncues por posición.
+  - **Nunca encadenes a través de un punto de decisión.** `test && commit` está prohibido: tenés que mirar el resultado del test antes de commitear.
+  - **Agrupá en un mismo mensaje las llamadas independientes** (varias lecturas, varios greps). Agresivo sólo en **lectura**; en `Edit`/`Write`, sólo archivos distintos y sin orden entre sí.
+- **Tu reporte al orquestador es contexto que él va a re-leer en cada turno.** Devolvé conclusiones ancladas en `archivo:línea` — **jamás dumps de salida de comandos ni archivos completos**. Si algo es largo, dejalo en disco y pasá la ruta.
 - Podés verificar la evidencia recibida (Read/Grep/Glob/Bash de solo lectura),
   pero NO amplíes el scope: si la consulta exige explorar terreno nuevo, eso es
   señal de que el paquete vino incompleto — devolvelo, no lo compenses.
