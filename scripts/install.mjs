@@ -78,12 +78,14 @@ if (existsSync(ats)) {
     [join(ats, 'hooks', 'context-guard.py'), join(target, 'hooks', 'context-guard.py')],
     [join(ats, 'hooks', 'precompact-preserve.py'), join(target, 'hooks', 'precompact-preserve.py')],
     [join(ats, 'token-audit.sh'), join(target, 'scripts', 'token-audit.sh')],
+    [join(ats, 'verificar-hooks.py'), join(target, 'scripts', 'verificar-hooks.py')],
     [join(ats, 'RTK.md'), join(target, 'RTK.md')],
   ];
   for (const [src, dst] of artefactos) if (existsSync(src)) place(src, dst, 'file');
   if (!isWin && mode === 'copy') {
     for (const f of ['statusline-context.py', join('hooks', 'context-guard.py'),
-                     join('hooks', 'precompact-preserve.py'), join('scripts', 'token-audit.sh')]) {
+                     join('hooks', 'precompact-preserve.py'), join('scripts', 'token-audit.sh'),
+                     join('scripts', 'verificar-hooks.py')]) {
       try { chmodSync(join(target, f), 0o755); } catch { /* noop */ }
     }
   }

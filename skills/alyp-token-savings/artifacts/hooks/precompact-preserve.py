@@ -10,7 +10,8 @@ un enfoque que una sesión anterior había rechazado con motivo.
 Hace dos cosas, en orden de robustez:
 
   1. LEDGER EN DISCO (lo único que no depende de nada más). Antes de que el contexto
-     se destruya, deja una entrada en ~/.claude/compact-log/<sesión>.md con el momento,
+     se destruya, deja una entrada en <config>/compact-log/<sesión>.md — donde <config>
+     es $CLAUDE_CONFIG_DIR o, si no está seteada, ~/.claude — con el momento,
      el trigger y el tamaño del contexto. Sirve para dos cosas: reconstruir qué pasó,
      y MEDIR la altura real de compactación de forma directa — en vez de inferirla
      desde caídas de cache_read, que fue el error de método del 2026-08-28
@@ -41,7 +42,12 @@ import os
 import sys
 from datetime import datetime
 
-LOG_DIR = os.path.expanduser("~/.claude/compact-log")
+# CLAUDE_CONFIG_DIR primero: quien mueve su config (perfiles, máquinas compartidas)
+# espera que el ledger viaje con ella, no que quede huérfano en ~/.claude.
+LOG_DIR = os.path.join(
+    os.environ.get("CLAUDE_CONFIG_DIR") or os.path.expanduser("~/.claude"),
+    "compact-log",
+)
 
 # Argumento sugerido para /compact. Corto a propósito: tiene que poder copiarse
 # y pegarse de un tirón. La versión larga de qué preservar no cabe en un aviso.
@@ -125,11 +131,13 @@ def main():
     # Compactación manual sin instrucciones: esta ya se pierde, pero la próxima no.
     # Sólo `systemMessage` — ver la advertencia del docstring sobre hookSpecificOutput.
     if trigger == "manual" and not instrucciones.strip():
+        # Si no se pudo medir el contexto, se omite el tamaño en vez de explicarlo:
+        # "Compactando sin poder medir el contexto sin instrucciones" se leía pésimo.
         k = round(ctx / 1000) if ctx else 0
-        cuanto = f"~{k}K" if k else "sin poder medir el contexto"
+        cuanto = f" ~{k}K" if k else ""
         emit({
             "systemMessage": (
-                f"💡 Compactando {cuanto} sin instrucciones. La próxima, pegá:\n"
+                f"💡 Compactando{cuanto} sin instrucciones. La próxima, pegá:\n"
                 f"   {COMPACT_SUGERIDO}"
             )
         })

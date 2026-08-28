@@ -18,6 +18,7 @@ de Claude Code en `~/.claude`. Idempotente: reinstalar re-sincroniza sin romper 
 | `artifacts/hooks/context-guard.py` | `~/.claude/hooks/` | UserPromptSubmit **no-bloqueante**: banda 150K/300K, 1 aviso por tramo por sesión |
 | `artifacts/hooks/precompact-preserve.py` | `~/.claude/hooks/` | PreCompact **no-bloqueante**: ledger de compactaciones en disco + recordatorio de `/compact <qué preservar>` |
 | `artifacts/token-audit.sh` | `~/.claude/scripts/` | Mide el consumo real de contexto desde los transcripts |
+| `artifacts/verificar-hooks.py` | `~/.claude/scripts/` | Verifica que los hooks **se comporten** bien (no sólo que existan) |
 | `artifacts/RTK.md` | `~/.claude/` | Política: usar `rtk` explícito siempre (el hook PreToolUse no reescribe) |
 | keys `statusLine` + `UserPromptSubmit` + `PreCompact` | `~/.claude/settings.json` | Merge preservando lo existente (respalda antes) |
 
@@ -42,7 +43,21 @@ el instalador lo detecta y, si falta, saltea el cableado con aviso.
 **Después: reiniciá Claude Code** — statusline y hook aplican al reiniciar (no con
 `/statusline`, que reconfigura en vez de recargar).
 
-## Cómo auditar (sin reinstalar)
+## Cómo verificar que funciona (sin reinstalar)
+
+Primero el comportamiento — es lo que falla en silencio. El verificador alimenta los
+hooks por stdin y revisa la salida contra el esquema real del harness; no dispara
+ninguna compactación y aísla su `CLAUDE_CONFIG_DIR`, así que no toca tu ledger:
+
+```bash
+python3 ~/.claude/scripts/verificar-hooks.py
+```
+
+Comprueba: `exit 0` siempre (un `exit 2` en UserPromptSubmit cuelga la sesión, y un
+PreCompact que falla aborta la compactación), que ninguno emita `hookSpecificOutput`,
+que el ledger se escriba, y que el throttle por tramo calle el segundo aviso.
+
+### Y que esté cableado
 
 ```bash
 test -f ~/.claude/statusline-context.py     && echo "statusline OK"
