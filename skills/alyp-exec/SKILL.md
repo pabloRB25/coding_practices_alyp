@@ -1,13 +1,13 @@
 ---
 name: alyp-exec
-version: 1.0.0
+version: 1.1.0
 provides: [execution-loop]
 requires: [orchestration]
 description: >
-  Loop de ejecución de tareas de programación completas de Alyp Studio — Opus orquesta y VALIDA, Sonnet ejecuta y se autovalida, Haiku hace lectura barata. Define el contrato de ida y vuelta (Contrato de Tarea → Reporte de Tarea), el ledger en disco, las olas paralelas y los tres gates mecánicos que hacen falsable el veredicto del orquestador. Invocar al EJECUTAR un plan, spec o conjunto de tareas de programación (no al diseñarlo): cuando vayas a despachar subagentes para implementar, refactorizar, migrar o barrer un codebase. Dos modos sobre las mismas estructuras — A conversacional (tool Agent, humano en el medio) y B harness (tool Workflow, plan cerrado). Complementa a devstral-orchestration, que define QUIÉN hace cada cosa; este define CÓMO fluye el trabajo. Perfil de contracts/orchestration.md (invariantes 1-7).
+  Loop de ejecución de tareas de programación completas de Alyp Studio — Sonnet orquesta y ejecuta, Opus FIRMA por invocación (contratos de ola y riesgo 2), Haiku hace lectura barata. Define el contrato de ida y vuelta (Contrato de Tarea → Reporte de Tarea), el ledger en disco, las olas paralelas, los tres gates mecánicos que hacen falsable el veredicto del orquestador y el gate de juicio G0 que hace falsable el contrato mismo. Invocar al EJECUTAR un plan, spec o conjunto de tareas de programación (no al diseñarlo): cuando vayas a despachar subagentes para implementar, refactorizar, migrar o barrer un codebase. Dos modos sobre las mismas estructuras — A conversacional (tool Agent, humano en el medio) y B harness (tool Workflow, plan cerrado). Complementa a devstral-orchestration, que define QUIÉN hace cada cosa; este define CÓMO fluye el trabajo. Perfil de contracts/orchestration.md (invariantes 1-9).
 ---
 
-# alyp-exec — loop de ejecución Opus↔Sonnet
+# alyp-exec — loop de ejecución Sonnet↔Opus
 
 > **Guard de subagentes**: si te despacharon COMO ejecutor de una tarea, este
 > skill no te aplica salvo §5 (tu autovalidación) y §6 (cómo se escribe tu
@@ -43,6 +43,7 @@ la ventana se pierde; lo que está en el ledger, no).
 | **R4** | **Ningún ejecutor devuelve trabajo sin verde propio** (§5). |
 | **R5** | **Validás por evidencia, no por relectura.** Abrís código solo ante los cuatro disparadores de §7.3. |
 | **R6** | **La evidencia que decide un veredicto la generás vos, no el juzgado** (§7.1). Contrato `orchestration` invariante 7. |
+| **R7** | **No firmás tus propios contratos.** Los de riesgo ≥1 los firma el razonador invocado (G0) antes de la ola; el diff de riesgo 2 lo firma él, de a uno. Vos routeás hacia la firma. Contrato `orchestration` invariantes 8 y 9. |
 
 ## 3. Las tres estructuras
 
@@ -58,12 +59,28 @@ Idénticas en ambos modos (§9). Son el contrato del sistema.
    contratos/<id>.md  # los contratos emitidos
    reportes/<id>.md   # los reportes completos (NO los releés en bloque — R1)
    gates/<ola>.txt    # salida de los gates mecánicos
+   firmas/<ola>.md    # veredictos de G0 y de las firmas de riesgo 2
    ```
 
 ## 4. F0–F2 · Encuadre, reconocimiento y ola
 
 **F0 · Encuadre** (vos, inline). Clasificás riesgo (§7.2), particionás y emitís
 contratos.
+
+**F0b · Firma de contratos — G0** (razonador invocado, contexto fresco). Antes de
+despachar, los contratos de riesgo ≥1 van a firma con el paquete acotado de
+`references/gates.md` §G0: objetivo de la ola, los N contratos, el piso de riesgo
+calculado por rutas — **nada de código**. Devuelve `firmado`, `corregir: <qué>` o
+`subir riesgo a N`, por contrato.
+
+> **Por qué existe.** G1–G3 protegen el resultado contra el ejecutor. No protegen
+> el criterio contra vos: el `verificacion`, la allowlist y el `riesgo` los
+> escribís vos, y sobre ese artefacto sos la parte juzgada. Un `verificacion`
+> flojo deja los tres gates mecánicos huecos y produce el peor resultado posible
+> del sistema — **todo verde, producto equivocado**.
+>
+> Una ola íntegramente de riesgo 0 **no invoca G0**: no se paga la invocación
+> para firmar lo que ningún juicio va a cambiar.
 
 > **Partición por archivos disjuntos**: dos tareas de la misma ola no pueden
 > compartir archivos en su allowlist. Si el solapamiento es inevitable →
@@ -97,7 +114,7 @@ Ver `references/reporte-tarea.md`. Lo esencial: **el campo `evidencia` del repor
 es informativo, no probatorio**. Orienta tu juicio; no lo funda. La prueba se
 regenera en F4a.
 
-## 7. F4 · Validación — la parte que no podés delegar
+## 7. F4 · Validación — lo mecánico es tuyo, la firma no
 
 ### 7.1 F4a · Gates mecánicos (sin juicio, sin razonamiento)
 
@@ -119,13 +136,17 @@ Los tres son comandos, no razonamiento: re-ejecutar cuesta órdenes de magnitud
 menos que releer diffs. Con G1–G3 en su lugar, el muestreo adversarial es
 **opcional** (p. ej. 1-de-N en riesgo 1), no estructural.
 
+**Los corrés vos, aunque el loop sea de tier obrero.** Respecto del *ejecutor*,
+vos sos quien juzga: tu G1 satisface el invariante 7(a) tal cual está escrito. Lo
+que no podés es firmar el criterio (R7) ni el diff de riesgo 2 (§7.2).
+
 ### 7.2 F4b · Juicio escalonado (solo sobre lo que pasó F4a)
 
 | Riesgo | Qué mirás |
 |---|---|
-| **0** — mecánico, aislado | Nada más. G1–G3 verdes = aceptado. Sin lectura de código. |
+| **0** — mecánico, aislado | Nada más. G1–G3 verdes = aceptado. Sin lectura de código, sin G0, sin firma. |
 | **1** — normal | Reporte + `git diff --stat` + **solo los hunks que el reporte señala** en `riesgos`. |
-| **2** — auth, RLS, dinero, PII, migraciones, irreversibles | `revisor` con `model: "opus"` sobre el diff. **La firma final es tuya.** Nunca baja de Opus. |
+| **2** — auth, RLS, dinero, PII, migraciones, irreversibles | `revisor` con `model: "opus"` sobre el diff, **de a uno, nunca agregado por ola**. **La firma es suya, no tuya** — y él re-ejecuta G1/G2 de lo que firma; tu paquete orienta, no funda. Contrato `orchestration` invariantes 8(b) y 9. |
 
 ### 7.3 Disparadores de lectura (únicas excepciones a R1)
 
@@ -198,6 +219,7 @@ en `references/modo-b-workflow.md`.
 | Etapas mecánicas (codemod, scaffold, formato) | haiku / sonnet | `low`–`medium` |
 | **Implementación con contrato cerrado (F2)** | **sonnet** | **`high`** |
 | Review no-crítico (riesgo 1) | sonnet | `high` |
+| **Firma de contratos de ola (G0/F0b)** | **opus** | **`high`** |
 | Verify / juez adversarial / riesgo 2 (F4b) | opus | `xhigh` |
 | — | — | `max`: nunca por default |
 
@@ -231,6 +253,11 @@ clasificar la falla (§8).
   tarea delegable, el loop se degradó → **pará y re-despachá**.
 - **Cobertura de gates**: 100% de las tareas aceptadas pasaron G1, sin excepción
   documentable.
+- **Cobertura de firma**: 100% de los contratos de riesgo ≥1 despachados con G0
+  firmado, y 100% de los diffs de riesgo 2 firmados de a uno.
+- **Alarma de G0 liviano**: si G0 firma todo sin devolver nunca `corregir` ni
+  `subir riesgo`, no está mirando — está sellando. La señal tardía que lo
+  confirma es la tasa de bugs que aparecen recién en verificación de browser.
 
 ## 13. Frontera con los otros skills
 

@@ -1,6 +1,6 @@
 ---
 name: implementador
-description: Implementa features y cambios multi-archivo siguiendo los estándares de Alyp Studio. Despachalo (desde el orquestador Opus) para trabajo de implementación que NO requiere decisiones de arquitectura ni seguridad crítica; con override model "opus" para debugging difícil (heisenbug, race, cross-system). Cascada local OBLIGATORIA — delega las sub-tareas mecánicas al ejecutor local (tier light por default; heavy solo si requiere razonamiento; mapeo en ~/.claude/capacity.yaml).
+description: Implementa features y cambios multi-archivo siguiendo los estándares de Alyp Studio. Despachalo (desde el loop orquestador) para trabajo de implementación que NO requiere decisiones de arquitectura ni seguridad crítica; con override model "opus" para debugging difícil (heisenbug, race, cross-system). Cascada local OBLIGATORIA — delega las sub-tareas mecánicas al ejecutor local (tier light por default; heavy solo si requiere razonamiento; mapeo en ~/.claude/capacity.yaml).
 tools: Read, Edit, Write, Grep, Glob, Bash, Skill, mcp__devstral-executor__delegate_to_devstral, mcp__chrome-devtools__*
 model: sonnet
 ---

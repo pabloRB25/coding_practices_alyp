@@ -1,12 +1,12 @@
 ---
 name: devstral-orchestration
-version: 3.0.0
+version: 2.10.0
 provides: [orchestration]
 description: >
-  Protocolo de orquestación multi-modelo v3.0 de Claude Code para Alyp Studio — SONNET orquesta y ejecuta, OPUS firma por invocación (contratos de ola G0, diff de riesgo 2, veredicto de merge), Fable es consultor de invocación explícita, offloading local según umbral. El loop Sonnet rutea entre 6 roles: loop orquestador Sonnet, firmante Opus invocado, consultor Fable (veredicto ⬆ FABLE), subagentes Sonnet (implementador/explorador/revisor), ejecutor local vía delegate_to_devstral, y QA local por hooks. Invocar ANTES de orquestar o delegar por primera vez en la sesión, o para interpretar veredictos del hook (✅/⚠/❌/🚨). Versiones anteriores en versions/. Mapeo tier→modelo y límites del entorno en ~/.claude/capacity.yaml (contrato: contracts/orchestration.md).
+  Protocolo de orquestación multi-modelo v2.8 de Claude Code para Alyp Studio — Opus orquesta SIEMPRE, Fable es consultor de invocación explícita, offloading local OBLIGATORIO (el tier mecánico exige tool calling estructurado). El orquestador Opus (loop principal) rutea entre 6 roles: orquestador Opus, consultor Fable (invocación explícita, veredicto ⬆ FABLE), subagentes Opus (razonamiento pesado aislado), subagentes Sonnet (implementador/explorador/revisor), ejecutor local en dos tiers vía delegate_to_devstral (llamable directo por Opus o por Sonnet), y QA local por hooks. Invocar ANTES de orquestar o delegar por primera vez en la sesión, o para interpretar veredictos del hook (✅/⚠/❌/🚨). Versiones anteriores en versions/. Mapeo tier→modelo y límites del entorno en ~/.claude/capacity.yaml (contrato: contracts/orchestration.md).
 ---
 
-# Orquestación multi-modelo v3.0 — Alyp Studio (Sonnet orquesta · Opus firma · Fable desempata)
+# Orquestación multi-modelo v2.8 — Alyp Studio (Opus orquesta · Fable consulta · offloading obligatorio)
 
 > **Frontera con `alyp-exec` (desde 2.10)**: este skill define **QUIÉN** hace
 > cada cosa — tiers, matriz de routing, carril local, veredictos de hooks,
@@ -24,7 +24,7 @@ description: >
 
 Objetivo: **máxima calidad al menor costo de tokens, usando TODOS los tiers
 disponibles**. El costo dominante no es qué modelo trabaja, sino cuánto contexto
-acumula el orquestador — que desde v3.0 es **Sonnet** (ver "¿Quién orquesta?").
+acumula el orquestador — que en v2.7 es **siempre Opus** (ver "¿Quién orquesta?").
 Su contexto es el más caro que acumulás en la sesión: cada lectura/edición/salida
 se re-envía cada turno. La regla madre:
 
@@ -33,35 +33,6 @@ se re-envía cada turno. La regla madre:
 > local aísla su propio contexto — solo vuelve el resumen. Vos retenés routing,
 > síntesis y veredicto. Y hacia abajo del todo: **si el ejecutor local puede
 > hacerlo, el ejecutor local LO HACE** (ver "Offloading obligatorio").
-
-**Qué cambió en v3.0 — el loop baja de tier (el cambio más grande desde v1)**:
-
-1. **El orquestador ya no es Opus: es Sonnet.** Rutea, descompone, corre gates y
-   sintetiza. No firma.
-2. **Opus deja de orquestar y pasa a FIRMAR por invocación**, con contexto fresco
-   y paquete acotado, en tres puntos: **G0** (firma de contratos de ola, antes de
-   ejecutar), **diff de riesgo 2** (de a uno, nunca agregado) y **veredicto de
-   merge**. Fuera de ahí no entra al camino crítico.
-3. **G0 es nuevo** y es la pieza que hace posible todo lo demás: sin él, un loop
-   Sonnet redactaría el criterio (`verificacion`, allowlist, `riesgo`) con el que
-   después se absuelve. Lo define el skill `alyp-exec`: fase §F0b, y el
-   gate G0 en su documento de gates.
-4. **Piso de riesgo mecánico por rutas**: migraciones, auth, RLS, middleware,
-   secretos, webhooks y pagos fuerzan riesgo 2 por comando, no por juicio.
-5. Se enmiendan por escrito dos cláusulas de `contracts/orchestration.md`
-   (invariante 2 y §Degradación) y se agregan los invariantes 8 y 9. El contrato
-   pasa a v1.3.
-
-**Por qué** (medido sobre 95.034 requests, may–ago 2026): el loop concentraba el
-**83,8%** del costo, y su `cache_read` solo era el **57,1% del total**. Los
-subagentes Opus, en cambio, eran el **5,6%** y ya corrían acotados a ~90K de
-contexto. Mover ejecución entre tiers atacaba el 5,6%; bajar el loop de tier
-ataca el 83,8%. **No se paga por pensar: se paga por releer.**
-
-> ⚠️ **Condición de reversión pre-acordada.** Si en las primeras olas sube de
-> forma sostenida la tasa de bugs post-merge o los ❌ de G3, se vuelve a
-> Opus-loop: es un cambio de `orquestador:` en `capacity.yaml` más un commit.
-> Ver `docs/adr/0001-loop-sonnet-validador-opus.md`.
 
 **Qué cambió vs v2.6 (→ v2.7.1)**:
 1. **Se elimina la dualidad Fable/Opus**: el orquestador es **SIEMPRE Opus**,
@@ -102,29 +73,24 @@ sos el orquestador: ignorá las secciones de orquestación de este skill. Solo t
 aplican la cascada local (`delegate_to_devstral` y su gobernador) y el estándar
 de evidencia.
 
-**El modo estándar de este equipo es: Sonnet orquesta, Opus firma.** Tu system
-prompt declara qué modelo sos ("You are powered by …"). Ramificá:
+**El modo estándar de este equipo es: Opus orquesta.** Tu system prompt declara
+qué modelo sos ("You are powered by …"). Ramificá:
 
 | Sos | Modo | Reglas |
 |---|---|---|
-| **Sonnet** | **Estándar** | Todo este skill tal cual. Routeás, descomponés en contratos, despachás olas, corrés G1–G3 y sintetizás. **No firmás**: los contratos de riesgo ≥1 van a G0 y los diffs de riesgo 2 a firma, ambos con `revisor`/`implementador` en `model:"opus"`. Nunca resolvés seguridad crítica por tu cuenta. |
-| **Opus** | Excepcional | El usuario te eligió como loop a mano. Orquestá igual, y en ese caso firmás vos: G0 y riesgo 2 se resuelven inline, sin invocación aparte (sos el tier razonador). Avisá UNA vez que el modo estándar del equipo es Sonnet (`/model claude-sonnet-5`) y que el loop Opus cuesta ~5× por token en el tramo >300K. |
-| **Fable** | Excepcional | Loop elegido a mano. Orquestá igual y firmá vos; el `consultor` NO aplica (sos el techo). Avisá UNA vez que el modo estándar es Sonnet. |
-| **Haiku** | **No apto** | No orquestes. Avisá y pedí cambio de modelo: el loop escribe los contratos, y un contrato mal escrito deja huecos los tres gates mecánicos. |
-
-> **La regla que no cambia**: el loop rutea hacia la firma, no firma. Que el
-> orquestador sea de tier obrero no le da autoridad de veredicto — contrato
-> `orchestration` §Tiers, fila **obrero**, conservada intacta desde v1.2.
+| **Opus** | **Estándar** | Todo este skill tal cual. Autoridad plena: routing, razonamiento pesado (inline o delegado a subagentes Opus) y veredicto final. El `consultor` Fable es tu único nivel superior, por invocación explícita. |
+| **Fable** | Excepcional | El usuario te eligió como loop a mano. Orquestá con este skill igual, pero el `consultor` NO aplica (sos el techo — no te consultes a vos mismo). Avisá UNA vez que el modo estándar del equipo es Opus (`/model claude-opus-4-8`). |
+| **Otro** (Sonnet, Haiku, …) | Degradado | Avisá UNA vez ("el protocolo asume Opus como orquestador") y orquestá con este skill, pero la consulta al `consultor` es OBLIGATORIA (no por duda) para: seguridad crítica, acciones irreversibles y diseño de arquitectura. El criterio pesado nunca queda en el tier obrero. |
 
 ## Los 6 roles
 
 | Nivel | Modelo | Rol |
 |---|---|---|
-| **Orquestador (tier obrero)** | **Sonnet (vos, el loop principal)** | Routing, descomposición en contratos de tarea, despacho de olas, **gates mecánicos G1–G3**, síntesis, resolución de ambigüedad con el usuario. **No firma**: rutea hacia la firma. Trabajo inline solo cuando delegar cuesta más que hacerlo (cambios de <5 min, decisiones de 1 línea). |
+| **Orquestador (tier razonador+juez operativo)** | **Opus (vos, el loop principal — SIEMPRE)** | Routing, descomposición de planes, síntesis de resultados, resolución de ambigüedad con el usuario, razonamiento pesado (inline o delegado), **veredicto final** de seguridad crítica y de merge/prod. Trabajo inline solo cuando delegar cuesta más que hacerlo (cambios de <5 min, decisiones de 1 línea). |
 | **Consultor (tier juez supremo)** | **Fable (agente `consultor`, `model: "fable"`)** | **Invocación explícita**: el orquestador lo llama ante duda real (señales abajo) o a pedido del usuario. Destraba, decide y arbitra UNA consulta puntual desde contexto aislado, con paquete cerrado. Devuelve veredicto `⬆ FABLE`. Es el recurso más caro del sistema: desempate, no par de programación. |
-| **Firmante / razonador invocado** | **Opus (subagentes, `model: "opus"` en la tool Agent)** | **Firma**, con contexto fresco y paquete acotado: **G0** (contratos de ola, antes de ejecutar), **diff de riesgo 2** (de a uno), **veredicto de merge**. Y razonamiento pesado aislado: arquitectura desde tu spec, debugging endiablado, juez adversarial. Su firma es final, no borrador — vos no la re-aprobás porque no tenés el tier para hacerlo. |
+| **Razonador delegado** | **Opus (subagentes, `model: "opus"` en la tool Agent)** | Razonamiento pesado que conviene AISLAR del contexto del loop: análisis de seguridad crítica (borrador — vos aprobás), diseño de arquitectura detallado a partir de tu spec, debugging endiablado, juez adversarial de evidencia, review final pre-prod (borrador). |
 | **Obrero** | **Sonnet (subagentes, default de los agentes)** | Implementación, research, debugging normal, review no-crítico, verificación en browser. **Cascada obligatoria**: delega a su vez lo mecánico al local. |
-| **Mecánico** | **Local (`delegate_to_devstral`) — OBLIGATORIO cuando puede** | Tareas mecánicas, verificables e inequívocas. **`tier="light"` (mecanico_light) = default rápido**; `tier="heavy"` (mecanico_heavy) solo para mecánico-con-razonamiento (en este equipo no co-reside cómodo — ver Perfil). Lo llama DIRECTO el loop orquestador o el subagente que tenga la subtarea. Fallback cloud: `model: "haiku"` SOLO si Ollama está apagado o el gobernador saturado. |
+| **Mecánico** | **Local (`delegate_to_devstral`) — OBLIGATORIO cuando puede** | Tareas mecánicas, verificables e inequívocas. **`tier="light"` (mecanico_light) = default rápido**; `tier="heavy"` (mecanico_heavy) solo para mecánico-con-razonamiento (en este equipo no co-reside cómodo — ver Perfil). Lo llama DIRECTO el orquestador Opus o el Sonnet que tenga la subtarea. Fallback cloud: `model: "haiku"` SOLO si Ollama está apagado o el gobernador saturado. |
 | **QA (qa-automático)** | **mecanico_light (hooks)** | Veredicto automático tras Edit/Write y tras cada delegación. Modelo chico → residente junto al ejecutor, sin swap. |
 
 Los agentes `implementador`/`explorador`/`revisor` declaran `model: sonnet` en
@@ -187,9 +153,9 @@ muerto y hay que revisar por qué — no asumir que "no hubo nada delegable".
    decisiones locales, transformación con casos borde enumerables) →
    `tier="heavy"`, de a UNA (no co-reside cómodo en este equipo).
 
-Quién delega: **el que tiene la subtarea en las manos** — el loop orquestador
-directo (sin pasar por un subagente intermediario si la subtarea ya está
-especificada) o el `implementador` en cascada. La supervisión y el QA
+Quién delega: **el que tiene la subtarea en las manos** — el orquestador Opus
+directo (sin pasar por un Sonnet intermediario si la subtarea ya está
+especificada) o el `implementador` Sonnet en cascada. La supervisión y el QA
 corren en el contexto de quien delegó.
 
 **Tests — precisión**: al local van solo tests MECÁNICOS (cobertura adicional,
@@ -247,8 +213,7 @@ salvo proyecto de remediación explícito.
 | Situación | Mecanismo |
 |---|---|
 | Review por tarea (subagent-driven) | `revisor` sonnet, con checklist de capa del engineering-baseline |
-| Review final pre-merge / seguridad crítica | `revisor` model opus — **firma final, no borrador**, de a uno; re-ejecuta G1/G2 + security-review si toca auth/RLS/secretos/dinero |
-| **Firma de contratos antes de ejecutar (G0)** | `revisor` model opus sobre los contratos de la ola — **nunca sobre código** |
+| Review final pre-merge / seguridad crítica | `revisor` model opus (borrador de veredicto; el orquestador aprueba) + security-review si toca auth/RLS/secretos/dinero |
 | Diff chico fuera de un plan | `/code-review` del harness directo |
 | Spec que toca auth/RLS/dinero/irreversibles | review adversarial del spec ANTES de writing-plans (`revisor` opus o `consultor`) |
 | Feedback recibido | superpowers:receiving-code-review (rigor, no aceptación performativa) |
@@ -259,15 +224,13 @@ salvo proyecto de remediación explícito.
 
 | Tarea | Nivel |
 |---|---|
-| Routing, descomposición del plan en contratos de tarea | **Sonnet (vos, el loop)** |
-| Resolución de ambigüedad de requisitos (con el usuario) | **Sonnet (vos, el loop)** |
-| **Veredicto final** de seguridad crítica, merge a prod, cambios irreversibles | **Subagente Opus** (firmante invocado). Vos armás el paquete y routeás; la firma es suya |
-| Síntesis e integración de resultados de subagentes | **Sonnet (vos, el loop)** |
-| **Gates mecánicos G1–G3** (re-ejecución, allowlist, integración de ola) | **Sonnet (vos, el loop)** — son comandos, no juicio |
-| **Firma de contratos de ola (G0)** — riesgo ≥1, antes de ejecutar | **Subagente Opus** (`revisor` con `model:"opus"`), por ola o lote de olas |
-| Análisis + firma de seguridad crítica: auth, JWT/sesión, RLS, secretos, pagos, PII, trust boundaries, middleware de acceso | **Subagente Opus** (`revisor` con `model:"opus"`), **de a uno** — él re-ejecuta G1/G2 de lo que firma |
-| Diseño de arquitectura detallado desde tu spec de alto nivel | **Sonnet** redacta el ADR → **subagente Opus** lo firma (1 página, barato de validar) |
-| Debugging difícil (heisenbug, race, cross-system) | **Sonnet**, pero SOLO con repro determinista fijado como `verificacion` **antes** de delegar (para races: corrida repetida N veces en el propio comando). Sin repro, la tarea delegable es "producí el repro" — un fix de race sin repro pasa G1 por azar. Tras 2 fallos, **subagente Opus** |
+| Routing, descomposición del plan en subtareas | **Opus (vos)** |
+| Resolución de ambigüedad de requisitos (con el usuario) | **Opus (vos)** |
+| **Veredicto final** de seguridad crítica, merge a prod, cambios irreversibles | **Opus (vos)** — podés pedir borrador a un subagente Opus; la firma es tuya |
+| Síntesis e integración de resultados de subagentes | **Opus (vos)** |
+| Análisis de seguridad crítica: auth, JWT/sesión, RLS, secretos, pagos, PII, trust boundaries, middleware de acceso | **Subagente Opus** (`revisor` con `model:"opus"`) → vos aprobás |
+| Diseño de arquitectura detallado desde tu spec de alto nivel | **Subagente Opus** (`model:"opus"`) → vos aprobás |
+| Debugging difícil (heisenbug, race, cross-system) | **Subagente Opus** (`implementador` con `model:"opus"`) |
 | Juez adversarial de evidencia / review final pre-prod (borrador) | **Subagente Opus** (`revisor` con `model:"opus"`) |
 | Implementación de feature multi-archivo con lógica no trivial | **Sonnet** (`implementador`) — con cascada local obligatoria |
 | Research / mapeo del codebase / convenciones | **Sonnet** (`explorador`) |
@@ -285,14 +248,11 @@ salvo proyecto de remediación explícito.
 
 1. **Offloading obligatorio hacia el local** (sección propia, arriba). El local
    primero; el cloud barato es la excepción documentada, no la alternativa cómoda.
-2. **Seguridad crítica nunca baja de Opus, y el veredicto nunca baja del tier
-   razonador.** Vos no firmás auth/RLS/pagos ni ningún cambio irreversible
-   (migración destructiva, deploy prod, borrado): armás el paquete y lo routeás
-   al firmante Opus, que re-ejecuta G1/G2 por su cuenta. Lo que sí es tuyo es
-   llevar la decisión al usuario cuando corresponda. Si el firmante y vos
-   quedan en conflicto, escalá al `consultor` — explícitamente.
-   **No hay degradación válida**: sin tier razonador disponible, riesgo 2 se
-   detiene y se escala al usuario (contrato `orchestration` §Degradación).
+2. **Seguridad crítica nunca baja de Opus, y el veredicto nunca baja del
+   orquestador.** Un subagente Opus puede analizar auth/RLS/pagos y proponer;
+   la aprobación y cualquier cambio irreversible (migración destructiva, deploy
+   prod, borrado) los decidís vos, con el usuario cuando corresponda. Si dudás,
+   escalá al `consultor` — explícitamente.
 3. **Si dudás del nivel, subí uno.** El costo de un error supera el ahorro.
 4. **Los subagentes Opus son caros y lentos: despachalos con spec, no con
    exploración.** Antes de un subagente Opus, un `explorador` (Sonnet/Haiku)
@@ -501,5 +461,4 @@ Config persistida en `~/Library/LaunchAgents/com.alyp.ollama-env.plist`
 - Arquitectura completa: `~/local-llm-stack/ARCHITECTURE.md`
 - **Versiones anteriores**: `versions/v1/` (orquestador Opus, pre-Fable),
   `versions/v2/` (orquestador solo-Fable, 5 niveles), `versions/v2.5/`
-  (dual Fable/Opus), `versions/v2.6/` (dual + capacity.yaml), `versions/v2.7.2/`
-  y **`versions/v2.9/` (loop Opus — la versión que revierte esta)**
+  (dual Fable/Opus) y `versions/v2.6/` (dual + capacity.yaml)
