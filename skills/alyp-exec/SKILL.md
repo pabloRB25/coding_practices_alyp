@@ -62,6 +62,10 @@ Idénticas en ambos modos (§9). Son el contrato del sistema.
    firmas/<ola>.md    # veredictos de G0 y de las firmas de riesgo 2
    ```
 
+   El ledger es local: **agregá `.claude/run/` al `.gitignore` del repo**. Commiteado,
+   sus archivos entran al `git diff --name-only` de G2 y lo hacen fallar contra su
+   propia allowlist.
+
 ## 4. F0–F2 · Encuadre, reconocimiento y ola
 
 **F0 · Encuadre** (vos, inline). Clasificás riesgo (§7.2), particionás y emitís
