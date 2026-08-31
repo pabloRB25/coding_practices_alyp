@@ -26,11 +26,15 @@ for (let i = 0; i < argv.length; i++) {
   else { console.error(`arg desconocido: ${a}`); process.exit(2); }
 }
 
-const SKILLS = [
-  'alyp-new-project', 'alyp-agentic-standards', 'agentic-logging',
-  'alyp-observability', 'alyp-qa-standard', 'devstral-orchestration',
-  'alyp-maestro', 'alyp-token-savings',
-];
+// Los skills se descubren del repo, no se enumeran: una lista hardcodeada se desincroniza
+// en silencio. Pasó con alyp-graph — se agregó a skills/ y el installer siguió reportando
+// "Instalación completa" sin instalarlo, que es el peor modo de falla posible acá.
+// check-drift.mjs ya recorre todo skills/; derivar la lista del disco los mantiene de
+// acuerdo por construcción en vez de por disciplina.
+const SKILLS = readdirSync(join(REPO_DIR, 'skills'), { withFileTypes: true })
+  .filter((e) => e.isDirectory())
+  .map((e) => e.name)
+  .sort();
 
 const isLink = (p) => { try { return lstatSync(p).isSymbolicLink(); } catch { return false; } };
 
@@ -72,14 +76,20 @@ if (existsSync(capEx) && !existsSync(capDst)) {
 const ats = join(REPO_DIR, 'skills', 'alyp-token-savings', 'artifacts');
 if (existsSync(ats)) {
   mkdirSync(join(target, 'hooks'), { recursive: true });
+  mkdirSync(join(target, 'scripts'), { recursive: true });
   const artefactos = [
     [join(ats, 'statusline-context.py'), join(target, 'statusline-context.py')],
     [join(ats, 'hooks', 'context-guard.py'), join(target, 'hooks', 'context-guard.py')],
+    [join(ats, 'hooks', 'precompact-preserve.py'), join(target, 'hooks', 'precompact-preserve.py')],
+    [join(ats, 'token-audit.sh'), join(target, 'scripts', 'token-audit.sh')],
+    [join(ats, 'verificar-hooks.py'), join(target, 'scripts', 'verificar-hooks.py')],
     [join(ats, 'RTK.md'), join(target, 'RTK.md')],
   ];
   for (const [src, dst] of artefactos) if (existsSync(src)) place(src, dst, 'file');
   if (!isWin && mode === 'copy') {
-    for (const f of ['statusline-context.py', join('hooks', 'context-guard.py')]) {
+    for (const f of ['statusline-context.py', join('hooks', 'context-guard.py'),
+                     join('hooks', 'precompact-preserve.py'), join('scripts', 'token-audit.sh'),
+                     join('scripts', 'verificar-hooks.py')]) {
       try { chmodSync(join(target, f), 0o755); } catch { /* noop */ }
     }
   }
@@ -123,6 +133,18 @@ function mergeSettings(target, py) {
   if (!present) {
     d.hooks.UserPromptSubmit.push({ hooks: [{ type: 'command', command: `${py} "${hk}"`, timeout: 10 }] });
   }
+  // PreCompact: preservar decisiones/caminos descartados antes de compactar.
+  // OJO: un PreCompact que falla ABORTA la compactación ("Compaction blocked by
+  // PreCompact hook"), por eso en Unix va con guarda `test -f … || exit 0`.
+  const pc = fwd(join(target, 'hooks', 'precompact-preserve.py'));
+  d.hooks.PreCompact = d.hooks.PreCompact ?? [];
+  const prePresent = d.hooks.PreCompact.some(
+    (b) => (b.hooks ?? []).some((h) => (h.command ?? '').includes('precompact-preserve')),
+  );
+  if (!prePresent) {
+    const cmd = isWin ? `${py} "${pc}"` : `test -f ${pc} && ${py} ${pc} || exit 0`;
+    d.hooks.PreCompact.push({ hooks: [{ type: 'command', command: cmd, timeout: 10 }] });
+  }
   writeFileSync(p, `${JSON.stringify(d, null, 2)}\n`);
-  console.log(`✓ settings.json: statusLine + UserPromptSubmit mergeados (intérprete: ${py}; backup .bak.*)`);
+  console.log(`✓ settings.json: statusLine + UserPromptSubmit + PreCompact mergeados (intérprete: ${py}; backup .bak.*)`);
 }

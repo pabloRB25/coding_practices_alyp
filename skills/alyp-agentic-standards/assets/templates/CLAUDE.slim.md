@@ -54,6 +54,8 @@ app/api/<dominio>/route.ts  # delgado: export { POST } from '@/features/<dominio
 6. Archivos < 200 líneas — si crece, dividir responsabilidades
 7. Todo `catch` loggea con `agenticLogger.error(ctx, err)` — nunca vacío
 8. Sin `console.log/error` — usar `agenticLogger`
+9. "Done" = `pnpm verify` verde **+** evidencia reproducible del happy path — nunca "parece correcto"
+10. Código muerto se **elimina en el mismo PR** que lo deja huérfano — nunca comentado ni en `/old`; git es el archivo
 
 ## Edge vs Node Runtime
 
@@ -80,14 +82,14 @@ import { agenticLogger } from '@/utils/logger';
 - [ ] Sin `console.*` desnudos
 - [ ] Sin `catch {}` vacíos
 - [ ] Sin deep imports entre features
+- [ ] Sin código huérfano dejado por el cambio — si algo quedó sin referencias, se eliminó en este mismo PR
 - [ ] Migración nueva si cambió el schema de DB
 - [ ] `/api/health` responde `{ "status": "ok" }`
 
 ## Features del proyecto
-<!-- AUTO-GENERADO por generate-context.js — no editar manualmente -->
-| Feature | Dominio | Archivos |
-|---------|---------|----------|
-| (vacío — correr `node scripts/generate-context.js` para poblar) |
+<!-- FEATURE-INDEX:START -->
+_Correr `pnpm feature-index` para poblar. Este bloque es generado — no editarlo a mano (I10)._
+<!-- FEATURE-INDEX:END -->
 
 ## Logging y debugging
 Ante cualquier error con `traceId`:
@@ -141,23 +143,3 @@ git commit -m "feat(<dominio>): implementar módulo <dominio>"
 
 > ⚠️ Sin política RLS, la tabla devolverá 0 filas a usuarios autenticados (RLS silencioso).
 > Si `count === 0` inesperadamente: verificar `pg_policies` y `memberships` del usuario.
-
-## Edge vs Node Runtime
-
-| Dónde | Runtime | Restricciones |
-|-------|---------|---------------|
-| `middleware.ts` | **Edge** | Sin `createAdminClient()`, sin `agenticLogger` completo, sin APIs de Node |
-| Route Handlers (`app/api/`) | **Node** (default) | Sin restricciones |
-| Server Actions | **Node** (default) | Sin restricciones |
-| `app/.../page.tsx` RSC | **Node** (default) | Sin restricciones |
-
-```typescript
-// ✅ OK en Route Handlers y Server Actions
-import { createAdminClient } from '@/lib/supabase/server';
-import { agenticLogger } from '@/utils/logger';
-
-// ❌ NUNCA en middleware.ts
-// import { createAdminClient } from '@/lib/supabase/server'; // edge crash
-```
-
-> Si necesitas lógica compleja en middleware: moverla a un Route Handler y redirigir.

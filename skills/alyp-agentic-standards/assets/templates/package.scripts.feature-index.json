@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "feature-index":       "node scripts/generate-feature-index.mjs",
+    "feature-index:check": "node scripts/generate-feature-index.mjs --check"
+  }
+}

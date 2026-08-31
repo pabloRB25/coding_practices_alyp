@@ -44,8 +44,9 @@ sigue la cadena de dependencias declarada en el frontmatter de los skills
 2. **`alyp-agentic-standards` en modo `audit`** (contrato `code-standard`) —
    integra la arquitectura por features, el gate `pnpm verify` y el linter de
    fronteras de módulo sin romper lo que ya existe en el repo.
-3. **`alyp-observability`** (skill que compone `logging-standard` + configuración OTel, sin contrato congelado propio) — completa la capa de transporte (OTel, Log Drain) sobre
-   el logging ya instalado en el paso 1.
+3. **`alyp-observability`** (contrato `observability`, que se apoya en
+   `logging-standard` sin reescribirlo) — completa la capa de transporte
+   (OTel, Log Drain) sobre el logging ya instalado en el paso 1.
 4. **`alyp-qa-standard`** (contrato `qa-standard`) — al final, porque su oráculo
    de logs consume el `traceid-contract` (paso 1) y sus flujos ejercitan código
    que ya sigue `code-standard` (paso 2).
@@ -70,7 +71,7 @@ estandares:
   code-standard: v1                           # sello en CLAUDE.md: agentic-standard: v1
   logging-standard: v1
   qa-standard: v1
-  observability: v1                           # sin sello en CLAUDE.md — compone logging-standard + OTel
+  observability: v1                           # sin sello: su conformidad vive en parte en la plataforma
 excepciones: []
 ```
 

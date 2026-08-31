@@ -6,5 +6,5 @@ estandares:
   code-standard: v1            # sello en CLAUDE.md: agentic-standard: v1
   logging-standard: v1
   qa-standard: v1
-  observability: v1            # sin sello en CLAUDE.md — compone logging-standard + OTel
+  observability: v1            # sin sello: su conformidad vive en parte en la plataforma
 excepciones: []                # ej: "- qa-standard: sin flujos P2 (app interna sin nocturno)"

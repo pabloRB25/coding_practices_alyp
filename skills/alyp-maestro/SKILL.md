@@ -7,7 +7,9 @@ description: >
   tarea, destila lo aprendido en skills locales versionadas en el repo del
   cliente (.claude/skills/<nombre>/SKILL.md): metodologías, pitfalls y decisiones
   durables que Claude auto-carga en futuras sesiones de ESE proyecto. Complementa
-  engram (recall de hechos) — no lo duplica. Incluye la skill fija `planificar`.
+  engram (recall de hechos) — no lo duplica. Incluye el par de skills fijas
+  `especificar` (spec de feature) y `planificar` (troceo del plan) —
+  `especificar` alimenta a `planificar`.
   Invocar al terminar una feature/tarea, antes de dar por cerrado el trabajo, o
   cuando el usuario pida "curar el conocimiento del proyecto" / "qué aprendimos".
 ---
@@ -70,13 +72,57 @@ Tres tipos, y nada más:
   restricción) que futuras iteraciones deben respetar o malgastarán tiempo
   redescubriéndola.
 
+## La skill fija `especificar`
+
+`especificar` es, junto con `planificar`, una skill local con nombre fijo y
+consumidor fijo: la usa quien cierra el diseño de una feature en
+`superpowers:brainstorming`, **antes** de pasar a `writing-plans`. Fija la
+plantilla de spec de ESTE repo — el spec no está completo sin "Mapa al
+estándar" y "Done verificable". El maestro instala y mantiene viva esta
+plantilla en `.claude/skills/especificar/SKILL.md` de cada repo cliente:
+
+```markdown
+---
+name: especificar
+description: Plantilla de spec de feature de ESTE repo. Usar al cerrar el
+  diseño en brainstorming, antes de writing-plans. El spec no está completo
+  sin "Mapa al estándar" y "Done verificable".
+---
+
+Todo spec de feature incluye, además del diseño:
+
+## Mapa al estándar
+- **Dominios afectados**: `features/<X>` nuevos vs modificados.
+- **Contratos Zod**: schemas nuevos/cambiados (nombre y campos clave).
+- **Migraciones**: SQL + política RLS; si hay datos vivos, clasificar cada
+  cambio como expand/migrate/contract según `alyp-agentic-standards`.
+- **QA**: flujos a crear/actualizar en `qa/flujos/*.yaml`.
+- **ADR**: si toca estructura (servicio, límite de dominio, contrato público,
+  esquema, proveedor) → ADR según `architecture-standards`; si no, escribir
+  "ADR: no aplica" explícitamente.
+
+## Done verificable
+Cada acceptance criterion se expresa en términos del gate y la evidencia
+canónica (contracts/qa-standard.md): qué test co-localizado lo cubre, o qué
+evidencia de browser/flujo lo demuestra. Un criterio sin forma de verificarse
+no entra al spec.
+
+## Routing (recordatorio)
+Spec técnico de código → superpowers:brainstorming (HARD-GATE). PRD de
+producto → product-management:write-spec. Si existe PRD previo, brainstorming
+lo consume como input, no lo reescribe. Spec que toca auth/RLS/dinero/
+irreversibles → review adversarial antes de writing-plans.
+```
+
 ## La skill fija `planificar`
 
-`planificar` es la **única** skill local con nombre fijo y consumidor fijo: la usa
-quien descompone el trabajo en este repo (vos en Opus, o `writing-plans`) **antes**
-de generar subtareas. Recoge la metodología de planificación de ESTE proyecto: cómo
-trocear, qué granularidad funciona, qué prerrequisitos respetar, qué orden. El
-maestro la crea y la mantiene viva con lo aprendido, como cualquier otra skill local.
+`planificar` es la contraparte de `especificar` en el par de skills fijas de
+este proyecto: la usa quien descompone el trabajo en este repo (vos en Opus, o
+`writing-plans`) **antes** de generar subtareas, y consume el spec que dejó
+`especificar` (con su "Mapa al estándar" y "Done verificable" ya resueltos).
+Recoge la metodología de planificación de ESTE proyecto: cómo trocear, qué
+granularidad funciona, qué prerrequisitos respetar, qué orden. El maestro la
+crea y la mantiene viva con lo aprendido, como cualquier otra skill local.
 
 ## Acción: `curar`
 

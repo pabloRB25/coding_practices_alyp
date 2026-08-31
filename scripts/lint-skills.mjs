@@ -9,6 +9,17 @@ const skills = readdirSync(root).filter((d) => statSync(join(root, d)).isDirecto
 const provistos = new Set();
 const requeridos = [];
 
+// Un `requires:` también puede apuntar a un contrato (contracts/*.md): un skill
+// declara así que es perfil de / depende de un contrato agnóstico, no solo de
+// otro skill o capacidad. Sumamos los contratos existentes al grafo — si el
+// contrato no existe en disco, el requires sigue fallando (dependencia real).
+const contractsDir = join(root, '..', 'contracts');
+if (existsSync(contractsDir)) {
+  for (const f of readdirSync(contractsDir)) {
+    if (f.endsWith('.md')) provistos.add(f.slice(0, -3));
+  }
+}
+
 for (const dir of skills) {
   const ruta = join(root, dir, 'SKILL.md');
   if (!existsSync(ruta)) { errores.push(`${dir}: falta SKILL.md`); continue; }

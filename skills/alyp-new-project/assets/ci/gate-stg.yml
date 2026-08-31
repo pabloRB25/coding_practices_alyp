@@ -1,0 +1,105 @@
+# Gate STG — promoción develop → staging. BLOQUEANTE (qa-standard G3).
+#
+# Corre el MISMO set que el gate local `pnpm verify:full` (code-standard I2):
+# el local existe para adelantar el fallo, no para validar menos.
+#
+# El check requerido de la rama `staging` es UN solo contexto — el job
+# agregador `Gate STG` del final. Si se requiriera cada job por separado,
+# agregar un job nuevo dejaría la protección desactualizada en silencio.
+#
+# ⚠ El nombre `Gate STG` es parte del contrato de bloqueo (qa-standard G4):
+# renombrarlo sin actualizar branch-protection.sh deja el gate MUDO — el check
+# requerido nunca reporta, que no es lo mismo que pasar.
+name: Gate STG
+
+on:
+  pull_request:
+    branches: [staging]
+
+# Serializa las corridas: el E2E usa el namespace QA de la DB de desarrollo,
+# que es compartida. Dos PRs simultáneos se pisarían el seed, así que el
+# segundo ESPERA (cancel-in-progress: false) en vez de fallar.
+concurrency:
+  group: gate-stg-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify · Build · Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify (typecheck + lint + test)
+        run: pnpm turbo run verify
+      - name: Build
+        run: pnpm turbo run build
+      - name: Security audit
+        run: pnpm audit --audit-level=high
+
+  # code-standard I2 / G6: aplicar migraciones sobre una base que YA las tiene
+  # no prueba que apliquen. Postgres vacío en el runner, migraciones en orden.
+  # Cubre el hueco de que `supabase start` local sea opcional.
+  esquema:
+    name: Esquema desde vacío
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ["5432:5432"]
+    steps:
+      - uses: actions/checkout@v4
+      # Orden lexicográfico de nombre: el mismo que usa el CLI de Supabase.
+      - name: Aplicar migraciones en orden
+        env:
+          PGPASSWORD: postgres
+        run: |
+          shopt -s nullglob
+          archivos=(supabase/migrations/*.sql)
+          if [ ${#archivos[@]} -eq 0 ]; then
+            echo "::notice::sin migraciones — nada que validar"; exit 0
+          fi
+          for f in "${archivos[@]}"; do
+            echo "→ $f"
+            psql -h localhost -U postgres -v ON_ERROR_STOP=1 -q -f "$f" || {
+              echo "::error file=$f::la migración no aplica sobre base vacía"; exit 1; }
+          done
+          echo "✓ ${#archivos[@]} migraciones aplican limpio desde vacío"
+
+  # Flujos P0+P1 con los tres oráculos. Ver el template del skill alyp-qa-standard.
+  e2e:
+    name: Flujos P0+P1
+    uses: ./.github/workflows/qa-e2e.yml
+    secrets: inherit
+    with:
+      base_url: http://localhost:3001
+      criticidad: "P0|P1"
+
+  # Único check requerido por la branch protection de `staging`.
+  gate-stg:
+    name: Gate STG
+    needs: [verify, esquema, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consolidar resultados
+        run: |
+          echo "verify=${{ needs.verify.result }} esquema=${{ needs.esquema.result }} e2e=${{ needs.e2e.result }}"
+          fallo=0
+          for r in "${{ needs.verify.result }}" "${{ needs.esquema.result }}" "${{ needs.e2e.result }}"; do
+            [ "$r" = "success" ] || fallo=1
+          done
+          if [ "$fallo" = "1" ]; then
+            echo "::error::Gate STG en rojo — la promoción a staging queda bloqueada"; exit 1
+          fi
+          echo "✓ Gate STG verde"

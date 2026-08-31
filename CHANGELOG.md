@@ -1,5 +1,111 @@
 # Changelog
 
+## v3.0.0 — 2026-08-28
+
+### El loop orquestador baja a tier obrero; el razonador pasa a firmante invocado
+
+ADR: `docs/adr/0001-loop-sonnet-validador-opus.md`. Consultado el tier juez
+(Fable) vía agente `consultor`: veredicto *viable-con-recortes*.
+
+Medido sobre 95.034 requests únicos (may–ago 2026, deduplicados por
+`(requestId, message.id)`, separando `isSidechain` antes de agregar): el **loop
+concentraba el 83,8% del costo** —su `cache_read` solo es el **57,1% del
+total**— contra **5,6% de los subagentes Opus**, que ya corrían acotados a ~90K
+de contexto. Mover ejecución entre tiers ahorraba 4,5%; bajar el loop de tier
+ahorra 67% bruto. **No se paga por pensar: se paga por releer.**
+
+- **`devstral-orchestration` → v3.0.0.** El loop es Sonnet: rutea, descompone en
+  contratos, despacha olas, corre G1–G3 y sintetiza. **No firma.** Opus deja de
+  orquestar y pasa a firmar por invocación en tres puntos: G0, diff de riesgo 2
+  (de a uno) y veredicto de merge. v2.9 archivada en `versions/v2.9/`.
+- **`alyp-exec` → v1.1.0.** Fase **F0b · G0** nueva; regla dura **R7** ("no
+  firmás tus propios contratos"); riesgo 2 pasa a firma final del razonador, no
+  borrador; ledger gana `firmas/<ola>.md`; métricas de cobertura de firma y
+  alarma de G0 liviano.
+- **`references/gates.md`**: gate **G0** (juicio, sobre el contrato, antes de
+  ejecutar) + **piso de riesgo mecánico por rutas** — migraciones, auth, RLS,
+  middleware, secretos, webhooks y pagos fuerzan riesgo 2 por comando.
+- **`contracts/orchestration.md` → v1.3**, dos enmiendas y dos invariantes:
+  - **Invariante 2 (enmendado)**: "el veredicto nunca baja del orquestador" →
+    "**nunca baja del tier razonador**". La letra vieja ataba el veredicto a un
+    rol de loop que el contrato ya no reserva al razonador; el espíritu se
+    conserva.
+  - **§Degradación (enmendada)**: con loop obrero, "consulta obligatoria al
+    juez" → **firma obligatoria del razonador invocado**; el juez vuelve a ser
+    desempate. Y se agrega: sin tier razonador, riesgo 2 **se detiene**.
+  - **Invariante 8 (nuevo)**: *respecto del contrato de tarea, el loop es la
+    parte juzgada*. El invariante 7 protege el resultado contra el ejecutor;
+    nada protegía el criterio contra quien lo escribe. Firma previa (G0), el
+    firmante re-ejecuta lo que firma, y piso de riesgo mecánico.
+  - **Invariante 9 (nuevo)**: la firma **no es agregable donde el gate no
+    alcanza** — riesgo 0-1 agrupa por ola; riesgo 2 se firma de a uno.
+- **`contracts/execution.md`**: fila de firmante G0; las filas `opus` dejan de
+  ser "borrador que el orquestador aprueba" y pasan a **firma final**.
+- **`capacity.example.yaml` → version 3**, `orquestador: claude-sonnet-5`. Ese
+  campo es el **switch de reversión**: volverlo a `claude-opus-4-8` más revertir
+  el commit del protocolo devuelve el sistema a v2.10.
+
+> ⚠️ **Pendiente de piloto.** Fable declaró confianza alta en la estructura y
+> **media en la proyección de costo**: falta correr `token-audit.sh` sobre un
+> plan piloto con loop Sonnet. Los contrafácticos asumen los mismos tokens a
+> otro precio, y un loop Sonnet podría necesitar más turnos. **El ahorro es una
+> hipótesis con aritmética sólida, no un resultado.** Condición de reversión
+> pre-acordada en el ADR.
+
+## v2.3.0 — 2026-08-16
+
+### `alyp-exec` v1.0.0 — el loop de ejecución, y el invariante de evidencia que faltaba
+
+El ecosistema tenía la matriz de routing (`devstral-orchestration`: **quién** hace cada cosa) pero no el loop de ejecución (**cómo fluye** una tarea de programación de punta a punta). Sin contrato de ida y vuelta, el orquestador terminaba leyendo repo para poder validar — y su ventana, el recurso más caro de la sesión, se llenaba de material que debería haber muerto en el contexto de un subagente.
+
+- **Skill nuevo `alyp-exec`** (perfil de `orchestration`, invariantes 1-7). Núcleo de 3 tiers: Opus orquesta y valida · Sonnet ejecuta y se autovalida · Haiku lectura barata. Define tres estructuras (Contrato de Tarea → Reporte de Tarea → ledger en disco), un loop de 5 fases con olas paralelas particionadas por archivos disjuntos, y dos modos de ejecución sobre las mismas estructuras: **A** conversacional (tool `Agent`, humano en el medio) y **B** harness (tool `Workflow`, plan cerrado). References: `contrato-tarea.md`, `reporte-tarea.md`, `gates.md`, `modo-b-workflow.md`; asset `ledger-init.sh`.
+- **`contracts/orchestration.md` → v1.2**, dos enmiendas:
+  - **Invariante 2**: el offloading al mecánico pasa de *obligatorio* a **opcional según entorno**. Se alinea con la realidad medida (`mecanico_heavy: null` desde el 2026-08-07 por la colisión de RAM con el evaluador de PAF) y permite que un perfil saque el carril local del camino crítico sin incumplir el contrato.
+  - **Invariante 7 (nuevo)**: *la evidencia que decide un veredicto la genera quien juzga, no quien es juzgado*. Cierra un hueco preexistente — el invariante 4 exigía evidencia pero no declaraba **quién la genera**. Piso de aceptación en todo nivel de riesgo: (a) re-ejecución independiente del criterio fijado *antes* de delegar, (b) gate de alcance que excluye los artefactos de verificación, (c) gate de integración por lote.
+- **Origen del invariante 7**: consulta al `consultor` Fable sobre la estrategia (2026-08-16). Detectó que en el diseño original toda la evidencia que el orquestador "validaba" había sido generada por la parte juzgada — forjable sin mala fe (salida stale, cwd equivocado, comando que pasa en vacío con 0 casos, reward-hacking sobre el propio test). El diseño lo corrige con los gates **G1 re-ejecución · G2 allowlist · G3 gate de ola**, piso para todo riesgo incluido el 0.
+- **Hallazgo del harness**: la tool `Agent` **no expone `effort`** (solo `model`); `agent()` dentro de `Workflow` expone ambos por etapa. La escalación "subí esfuerzo antes que modelo" queda declarada como **exclusiva de Modo B** — regla anti-divergencia: si un modo no puede cumplir una palanca, se declara no disponible, no se emula.
+- **`devstral-orchestration` → 2.10.0**: sección de frontera al tope (quién vs cómo; al ejecutar manda `alyp-exec`) y nota de contrato en §Offloading — el umbral de lote+solapamiento de v2.9 ES la forma que toma la opcionalidad del invariante 2 en este perfil.
+- **`scripts/install.mjs`**: `alyp-exec` sumado a la lista `SKILLS` (es hardcodeada — un skill nuevo no se despliega solo).
+- Diseño completo y trazabilidad de las decisiones: `docs/specs/2026-08-16-alyp-exec-design.md`.
+
+## v2.2.2 — 2026-07-16
+
+### Endurecimiento del ejecutor local — el offloading obligatorio deja de tener falsos positivos
+
+Resuelve los defectos de infra que v2.2.1 dejó pendientes (`~/local-llm-stack`, fuera de este repo, sin versionar). Con "offloading obligatorio" como regla dura, un ejecutor que reporta éxito sin hacer nada es inaceptable. Se arreglaron tres bugs, todos verificados con tests:
+
+- **El hook de supervisión estaba ciego (bug de raíz).** `parse_response_text` leía `tool_response.get("content")`, pero el MCP entrega `{"result": "..."}` como **string JSON serializado** → el hook parseaba un texto vacío/incorrecto. Por eso NUNCA detectaba escrituras (ni reales), no disparaba la escalación por tope de iteraciones, y aprobaba ✅ todo. Fix: `parse_response_text` desenvuelve el sobre `{"result": ...}` (str o dict).
+- **Detección de escrituras robusta.** `extract_files_written` ahora ancla en la confirmación real de la tool (`-> OK: escrito {path} ({N} chars)`), que sobrevive al escape de comillas del JSON y al truncado de argumentos a 120 chars (si el modelo mandaba `content` antes que `path`, la ruta se perdía). El parseo de args queda como respaldo. Solo cuenta archivos que existen en disco.
+- **No-op ya no es éxito.** `server.py`: cuando el modelo no emite `tool_calls` con trace vacío, en vez de `[El ejecutor local completó la tarea]` devuelve el marcador `[NO-OP]` con diagnóstico (distingue "emitió la tool call como TEXTO" = tool calling roto, de "respondió sin hacer nada"). El hook detecta `[NO-OP]` y el patrón de tool-call-como-texto en el resumen (nunca en el trace) → nuevo veredicto **🚨 ESCALACIÓN por no-op** que NO re-delega (falla idéntico) y, si es tool calling roto, apunta a revisar `MODEL_LIGHT`.
+- **Tests**: `hooks/test_supervise_parsing.py` (11 casos con la forma REAL del payload: sobre JSON, comillas escapadas, no-op, tool-call-como-texto, read-only legítimo, tope de iteraciones). Verificación E2E por el harness real: heavy y light escriben, el hook detecta y QA cada archivo, veredicto ✅ correcto; la escritura que antes reportaba "sin archivos escritos" ahora se detecta.
+- El MCP recargó y `tier=light` corre `qwen3:4b` (confirmado por `/api/ps`): el offloading obligatorio funciona end-to-end.
+
+## v2.2.1 — 2026-07-16
+
+### devstral-orchestration v2.7.2 — el tier mecánico exige tool calling estructurado
+
+Parche de validación sobre v2.7.1 (misma doctrina). Al probar el offloading obligatorio end-to-end se descubrió que el ejecutor light **no ejecutaba nada**: emitía la llamada `write_file` como texto en `content` en vez de `tool_calls` estructurados. El loop de `server.py` (~línea 330: `if not tool_calls: return "[El ejecutor local completó la tarea]"`) lo interpretaba como fin exitoso → **éxito falso silencioso**. Con "offloading obligatorio" como regla dura, ese era el peor modo de falla posible: la regla central de v2.7.1 enrutaba por default a un tier que no hacía nada y reportaba OK.
+
+- **Requisito nuevo en el protocolo**: el tier mecánico DEBE emitir `tool_calls` estructurados. No alcanza con `capabilities: [tools]` de `/api/show` — un modelo puede declararlo y fallar igual (medido). Síntoma inconfundible: resumen con bloque JSON `{"name": "write_file", ...}` + trace `--- acciones ---` vacío = no-op, no aceptar.
+- **`mecanico_light`: `qwen2.5-coder:3b` → `qwen3:4b`**. Medido 2026-07-16 (3 tareas mecánicas directas + 2 delegaciones vía MCP): 3b = **0/5**, qwen3:4b = **4/4**. También verificados OK: gemma4:12b, gpt-oss:20b, qwen3-coder:30b. El 3b queda solo como QA de hooks (no necesita tool calling: devuelve prosa).
+- **RAM**: el cambio cuesta +2.4 GB residentes (light+QA: 5.4 → **7.8 GB** de 36, medido con `/api/ps`) y compra un ejecutor que efectivamente ejecuta. Sigue siendo el camino de paralelismo seguro, sin presión de SO. Nota de unidades documentada: disco (`/api/tags`) ≠ cargado (`/api/ps`) porque Ollama pre-asigna KV = `NUM_PARALLEL × num_ctx`; presupuestar siempre con `/api/ps`.
+- `capacity.yaml`/example: key nueva `qa`; comentarios con el requisito de tool calling y la medición. El cambio de modelo es de capacity, no de protocolo — como manda el propio contrato.
+- SKILL: sección "Requisito duro del tier mecánico" + tabla "Perfil del equipo" con tamaños reales medidos y la nota de que heavy hace paginar el SO (QA 5 s → 167 s), por lo que sigue siendo opt-in.
+- Fuera de este repo (infra local, sin versionar): `~/local-llm-stack/devstral-mcp/server.py::MODEL_LIGHT` y `ARCHITECTURE.md` actualizados con la medición. **Pendiente**: el falso positivo de `server.py` (no-op reportado como éxito) y el hook `supervise-devstral.py`, que aprueba con "sin archivos escritos detectados" y además no detectó una escritura real del tier heavy.
+
+## v2.2.0 — 2026-07-16
+
+### devstral-orchestration v2.7.1 — Opus orquesta, Fable consulta, offloading obligatorio
+
+- **Doctrina nueva**: se elimina la dualidad Fable/Opus de v2.5-v2.6. El orquestador es **SIEMPRE Opus** (autoridad plena); Fable existe únicamente como agente `consultor` de **invocación explícita** (duda real o pedido del usuario). Fallbacks: Fable como loop orquesta igual sin consultor (es el techo); Sonnet/Haiku = modo degradado con consulta obligatoria en crítico.
+- **Offloading local OBLIGATORIO**: toda subtarea mecánica + verificable + inequívoca VA al ejecutor local (light default; heavy de a una). Queda derogada la regla v2.6 "para velocidad pura, el local es opcional". Excepciones únicas: gobernador saturado (→ haiku), Ollama apagado (→ haiku), contexto > num_ctx o spec ambiguo (→ sonnet). El local es llamable directo por el orquestador Opus y por el implementador Sonnet (cascada).
+- **Perfil del equipo** documentado en el SKILL (validado 2026-07-16, M3 Pro 36 GB/12c): light+QA ≈ 6 GB = camino de paralelismo seguro (2 delegaciones vivas), heavy ~21 GB no co-reside; ola cloud = 10, subagentes Opus ≤ 3/ola.
+- `capacity.yaml` → **version 2**: nueva key `orquestador` + comentarios de roles v2.7.1 (mismas keys de tiers, sin breaking).
+- `contracts/orchestration.md` → **v1.1**: sección "Modo estándar (desde protocolo v2.7)" + invariante 2 endurecido (offloading obligatorio, escalación explícita al juez).
+- Agentes `implementador`/`explorador`/`revisor`/`consultor` alineados: el que despacha es el orquestador Opus; cascada local obligatoria en el implementador; consultor = única vía de acceso a Fable. Se quitan modelos locales hardcodeados de las descripciones (fuente: capacity.yaml).
+- CLAUDE.md global unificado a v2.7.1 (resuelve el drift v2.5 detectado el 2026-07-16): índice sin modelos hardcodeados, puntero a capacity.yaml.
+- v2.6 archivada en `skills/devstral-orchestration/versions/v2.6/`.
+
 ## v2.1.0 — 2026-07-06
 
 ### Soporte cross-platform (macOS · Linux · Windows)

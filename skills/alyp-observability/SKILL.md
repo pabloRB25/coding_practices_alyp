@@ -1,6 +1,6 @@
 ---
 name: alyp-observability
-version: 1.1.0
+version: 1.2.0
 provides: [observability]
 requires: [agentic-logging]
 description: >
@@ -14,6 +14,11 @@ description: >
 ---
 
 # Alyp Studio — Observabilidad y Logs
+
+**Contrato**: este skill es el perfil **next·vercel** del contrato
+`contracts/observability.md` (invariantes O1–O6). Ante conflicto, el contrato manda.
+Se apoya en `contracts/logging-standard.md`, que instala el skill `agentic-logging`
+(FASE 2) — este perfil no reescribe esa capa.
 
 **Principio rector**: instrumentar una sola vez con estándares abiertos; el backend es decisión de proyecto, no de scaffold.
 
@@ -188,6 +193,32 @@ LOG_PROVIDER_TOKEN="Basic <base64('HOSTED_LOGS_ID:TOKEN')>"           # mismo va
 **`agent:gps:prod` local**: añadir a `package.json` el script `"agent:gps:prod": "node --env-file=.env.production.local scripts/agent-gps.mjs"` y crear `.env.production.local` via `vercel env pull` (corregir manualmente los valores cifrados que aparecen como `""`).
 
 **Vercel CLI bug v53.x**: `vercel env add KEY preview --value ... --yes` falla con código 1. Usar REST API: `POST https://api.vercel.com/v10/projects/{projectId}/env?teamId={teamId}` con body `{"key":"...","value":"...","type":"encrypted","target":["production","preview"]}`.
+
+## Verificación de la instalación (acceptance criteria)
+
+Cada check implementa un criterio de aceptación de `contracts/observability.md`.
+
+```bash
+# 1. (O6) Gate de punta a punta: error real recuperable con su ubicación
+#    Provocar un error en el ambiente desplegado y buscarlo por su traceId:
+pnpm agent:gps <traceId>
+# → archivo + línea, en menos de ~30s desde que ocurrió
+
+# 2. (O3) No-op verificable: sin destino configurado, la app corre igual
+OTEL_EXPORTER_OTLP_ENDPOINT= pnpm build && OTEL_EXPORTER_OTLP_ENDPOINT= pnpm test --run
+# → verde, sin errores ni warnings de instrumentación
+
+# 3. (O1) Cambiar de backend no toca código
+git diff --name-only <commit-previo-al-cambio-de-backend>
+# → solo env/config; ningún archivo de la app
+
+# 4. (O5) El mapa del doc coincide con lo configurado en la plataforma
+grep -A6 "Mapa de ambientes" CLAUDE.md && vercel env ls
+# → mismos valores de LOG_PROVIDER por ambiente, sin ambientes sin destino
+
+# 5. (O4) traceId compartido entre log y traza
+# → el traceId del log JSON aparece como trace id en el backend de traces
+```
 
 ## Checklist de instalación
 

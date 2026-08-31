@@ -1,6 +1,6 @@
 ---
 name: alyp-agentic-standards
-version: 1.1.0
+version: 1.3.0
 provides: [code-standard]
 requires: [agentic-logging]
 description: >
@@ -22,6 +22,8 @@ Optimiza el ciclo del agente: **LEER → ENTENDER → CAMBIAR → VERIFICAR**.
 
 **Contrato**: este skill es el perfil **next·supabase·vercel** del contrato
 `contracts/code-standard.md` (invariantes I1–I9). Ante conflicto, el contrato manda.
+Además del contrato propio, este perfil implementa la línea base genérica
+`contracts/engineering-baseline.md`.
 
 **Principio**: lo que abarata cada paso del ciclo sube la tasa de éxito y baja el consumo de tokens.
 
@@ -71,6 +73,12 @@ En Turborepo, agregar al `turbo.json` las tareas de `assets/templates/turbo.veri
 
 "Parece correcto" sin alguna de las dos no es done — es **no-evaluable**. Es la misma regla que aplica el agente `revisor`/juez: sin evidencia recolectable y determinista, el veredicto no es positivo.
 
+Esta definición IMPLEMENTA, para el perfil next·supabase·vercel, los
+checklists de Definition of Done de `contracts/engineering-baseline.md`.
+No son dos definiciones: ante duda, el baseline es el mínimo y esto lo concreta.
+La redacción canónica de "evidencia" vive en `contracts/qa-standard.md`
+("Definición canónica de evidencia") — este texto es un puntero.
+
 ## FASE 3 — Arquitectura por features
 
 ### 3.1 Estructura base
@@ -97,6 +105,15 @@ src/
 Regla de naming: **`<feature>.<rol>.ts`** — siempre, sin excepciones.
 El patrón uniforme es lo que el agente aprende una vez y replica sin error.
 
+**Idioma (excepción declarada al baseline §08)**: el baseline pide "un solo
+idioma para identificadores". El perfil Alyp lo implementa como regla dual
+consciente: **dominio de negocio en español** (features, tablas, códigos de
+error, logs — `agenticLogger`, `contexto`, `traceId` como término técnico) y
+**vocabulario técnico en inglés** (patrones de archivo: queries/actions/
+controller/schema). La frontera es el nombre del dominio: `features/aguinaldos/
+aguinaldos.queries.ts`. Declarar esta excepción en el `standards.yaml` de cada
+repo (manifest, regla 2).
+
 ### 3.2–3.4 Plantillas por archivo
 
 | Archivo destino | Template (copiá reemplazando `<Dominio>`/`<dominio>`) |
@@ -119,9 +136,60 @@ Reglas de la fase:
 
 Agregar a la config de ESLint del proyecto las reglas de `assets/templates/eslint.module-boundaries.cjs`: no deep imports entre features (solo por barrel), `no-console`, `no-empty` sin catch vacío, calidad de código.
 
+## FASE 4.5 — Código muerto: detección y gate (knip)
+
+Para un agente, el código muerto es deuda **activa**, no pasiva: se lee (tokens
+de exploración desperdiciados en cada sesión), se imita (un patrón abandonado
+sigue "votando" como ejemplo y el agente lo replica en código nuevo) y se
+mantiene (refactors mecánicos actualizan fielmente código que nadie ejecuta).
+El flujo con agentes además lo genera más rápido: versiones abandonadas,
+helpers huérfanos, exports "por las dudas". Política: detección mecanizada +
+borrado inmediato.
+
+**Tres capas de "muerto", cada una con su validación:**
+
+| Capa | Qué es | Cómo se valida |
+|------|--------|----------------|
+| 1. Estática | Archivos, exports y deps sin referencias | `knip` como gate (esta fase) + `noUnusedLocals`/`no-unused-vars` para lo intra-archivo (FASES 1 y 4) |
+| 2. Dinámica | Alcanzable pero sin ejecución real: endpoints sin tráfico, ramas de feature flags resueltos | Logs estructurados (`contexto`) + analytics. Sin tráfico en 90 días = candidato a borrar. Flag 100% on/off por más de un ciclo = inline-ear y borrar la rama perdedora |
+| 3. Plataforma | Columnas/tablas/RPC/edge functions/policies/env vars/crons huérfanos | Auditoría periódica cruzando esquema Supabase y config contra grep del codebase (delegable a agente — oráculo claro: ¿hay referencia? ¿hay tráfico?) |
+
+La capa 1 se mecaniza al 100% (esta fase). Las capas 2 y 3 no tienen gate
+posible: quedan en auditoría trimestral con oráculo explícito.
+
+**Instalación (bootstrap o audit):**
+
+1. `pnpm add -D knip` en la raíz del workspace (entiende monorepos pnpm y
+   tiene plugin Next.js: sabe que `page.tsx`/`route.ts`/`middleware.ts` son
+   entrypoints implícitos). Reemplaza a `ts-prune` + `depcheck` + `unimported`
+   (sin mantenimiento — no usarlos).
+2. Config `knip.json` **commiteada**, con los entrypoints no estándar
+   declarados (`scripts/`, jobs, handlers registrados por convención).
+3. **Primera corrida = solo reporte** (`pnpm knip`): triage manual de falsos
+   positivos (imports dinámicos, barrels que re-exportan de más, código
+   invocado por convención) → ajustar config. **Nunca `--fix` automático en la
+   primera pasada.**
+4. **Purga inicial en PR dedicado** que solo borra, sin mezclar con features.
+   La herramienta *propone*; el gate *confirma*: `pnpm verify` verde + preview
+   funcionando = era muerto de verdad.
+5. **Ratchet permanente**: recién entonces knip entra al gate (sumarlo a
+   `verify` o como job propio de CI). Desde ahí, código muerto nuevo no entra:
+   el PR que deja un export huérfano falla el gate.
+
+**Reglas de la fase (no negociables):**
+
+- Código muerto se **borra, nunca se comenta** ni se archiva en `/old` o
+  `_deprecated`. Git es el archivo: commit descriptivo
+  (`chore: eliminar X, muerto desde <causa>`) hace la recuperación trivial.
+  El código comentado es el peor caso para el agente: gasta tokens y confunde.
+- Si un cambio deja código sin referencias, **el mismo PR lo elimina** — el
+  agente que genera el huérfano lo limpia con el contexto fresco y el diff chico.
+
 ## FASE 5 — Generador de features
 
 Copiar `assets/templates/new-feature.mjs` a `scripts/new-feature.mjs` **tal cual, sin reemplazos** — crea el scaffold de una feature nueva en un comando, más un stub de migración SQL con RLS (referencia del stub: `assets/templates/migration_add_dominio.sql`) e imprime el runbook.
+
+Migraciones sobre DB con datos de producción: seguir `references/migraciones-datos-vivos.md` (expand → migrate → contract).
 
 Agregar a `package.json` el script de `assets/templates/package.scripts.new-feature.json`.
 
@@ -130,6 +198,11 @@ Agregar a `package.json` el script de `assets/templates/package.scripts.new-feat
 pnpm new-feature inventario
 # → crea src/features/inventario/ con los 6 archivos base
 ```
+
+**TDD y el generador**: el scaffold es código generado (excepción TDD
+declarada — no re-negociar por sesión). El ciclo rojo-verde empieza en el
+PRIMER cambio de comportamiento sobre el scaffold: test rojo en
+`<dominio>.test.ts` antes de tocar queries/actions/controller.
 
 ## FASE 6 — Vitest (testing co-localizado)
 
@@ -173,7 +246,7 @@ Next.js tiene dos runtimes. La confusión entre ellos causa crashes silenciosos 
 ## FASE 7 — CLAUDE.md slim (operativo por proyecto)
 
 Generar `CLAUDE.md` en la raíz del proyecto copiando `assets/templates/CLAUDE.slim.md` (reemplazar `$CLIENT_NAME`). Incluye: mapa de ambientes, comandos esenciales, arquitectura, convenciones, definición de "done", runbook de nueva feature y Edge vs Node.
-El `generate-context.js` (FASE 8 de `alyp-new-project`) actualiza la sección de features automáticamente.
+La tabla de dominios se puebla en la FASE 7.5 (no editarla a mano). El `generate-context.js` (FASE 8 de `alyp-new-project`) mantiene `memory/*.md` y las secciones `<!-- MANUAL -->`.
 
 Convenciones no negociables (también en el CLAUDE.md slim):
 1. `<feature>.<rol>.ts` — naming siempre, sin excepciones
@@ -185,8 +258,51 @@ Convenciones no negociables (también en el CLAUDE.md slim):
 7. Todo `catch` loggea con `agenticLogger.error(ctx, err)` — nunca vacío
 8. Sin `console.log/error` — usar `agenticLogger`
 9. "Done" = `pnpm verify` verde **+** evidencia reproducible del happy path — nunca "parece correcto" (ver Definición de "done" en FASE 2 y el agente `revisor`/juez)
+10. Código muerto se **elimina en el mismo PR** que lo deja huérfano — nunca comentado ni en `/old`; git es el archivo (ver FASE 4.5)
 
 Commit atómico: feature + migración juntos (`git add src/features/<dominio>/ supabase/migrations/ src/types/ app/api/<dominio>/`).
+
+## FASE 7.5 — Índice de dominios (GPS de features)
+
+Implementa el invariante **I10** de `contracts/code-standard.md`. I4 hace
+*predecible* dónde vive un dominio; I10 lo hace **enumerable**: el agente sabe
+qué dominios existen y qué expone cada uno sin recorrer el árbol ni gastar
+tokens en exploración.
+
+El índice se **deriva del código** (carpetas de `features/` + barrels), nunca se
+escribe a mano — un índice escrito a mano miente en el segundo commit.
+
+**Instalación (bootstrap o audit):**
+
+1. Copiar `assets/templates/generate-feature-index.mjs` a
+   `scripts/generate-feature-index.mjs` **tal cual, sin reemplazos**.
+2. Agregar a `package.json` los scripts de
+   `assets/templates/package.scripts.feature-index.json`.
+3. Verificar que `CLAUDE.md` tiene los marcadores donde va el índice (el
+   `CLAUDE.slim.md` de FASE 7 ya los trae):
+   ```
+   <!-- FEATURE-INDEX:START -->
+   <!-- FEATURE-INDEX:END -->
+   ```
+4. Poblar con `pnpm feature-index` y commitear el resultado.
+5. **Ratchet**: recién con el índice poblado, sumar el check al gate único —
+   `"verify": "pnpm feature-index:check && pnpm typecheck && pnpm lint && pnpm test --run"`.
+   Desde ahí, un dominio nuevo sin regenerar el índice deja el PR en rojo.
+
+**Qué reporta** — por dominio: ubicación, roles presentes (`<dominio>.<rol>.ts`)
+y la API pública real leída del barrel. Marca `⚠️ sin test` los dominios sin
+`<dominio>.test.ts` y `⚠️ barrel vacío o ausente` los que violan I6. El índice
+es, además, un detector de deriva del estándar.
+
+**Reglas de la fase:**
+
+- El bloque entre marcadores es **generado**: editarlo a mano lo deja en rojo en
+  el próximo `verify`. Para cambiar el contenido se cambia el código, no la tabla.
+- FASE 5 y esta son un par: `pnpm new-feature` crea el dominio, `pnpm feature-index`
+  lo publica. Ambos en el mismo commit atómico.
+- **Un solo dueño por bloque**: `generate-context.js` (FASE 8 de `alyp-new-project`)
+  mantiene `memory/*.md` y las secciones `<!-- MANUAL -->` de CLAUDE.md; la tabla
+  de dominios es de este script y solo de este script.
 
 ## FASE 8 — CI: integrar verify como gate
 
@@ -225,6 +341,12 @@ pnpm supabase:gen
 
 # 5. CLAUDE.md slim tiene sello
 grep "agentic-standard: v1" CLAUDE.md
+
+# 6. Índice de dominios poblado y al día (I10)
+pnpm feature-index:check
+# → "✅ Índice de dominios al día (N dominios)". Debe fallar si se crea un
+#   dominio nuevo y no se regenera:
+#   pnpm new-feature prueba-indice && pnpm feature-index:check  → exit 1
 ```
 
 ## Modo audit — integrar en proyecto existente
@@ -250,9 +372,13 @@ grep "agentic-standard: v1" CLAUDE.md
 - [ ] `pnpm new-feature` en scripts de package.json
 - [ ] Vitest instalado y `vitest.config.ts` creado
 - [ ] ESLint: `no-restricted-imports` + `no-console` + `no-empty`
+- [ ] knip instalado con `knip.json` commiteada (entrypoints declarados) e integrado al gate
 - [ ] CI: `pnpm verify` como gate en lugar de pasos separados
 - [ ] `CLAUDE.md` slim generado con sello `agentic-standard: v1`
 - [ ] Sello verificable con `grep "agentic-standard" CLAUDE.md`
+- [ ] `scripts/generate-feature-index.mjs` creado + scripts `feature-index` / `feature-index:check` en package.json
+- [ ] Marcadores `FEATURE-INDEX:START/END` presentes en CLAUDE.md e índice poblado (`pnpm feature-index`)
+- [ ] `feature-index:check` integrado al gate `verify` (después de poblar)
 - [ ] `new-feature.mjs` genera migration stub con RLS template e imprime runbook
 - [ ] `supabase/seed.sql` creado con datos mínimos de prueba
 - [ ] Mapa de ambientes en CLAUDE.md slim (rama→Supabase→LOG_PROVIDER)
@@ -264,4 +390,6 @@ grep "agentic-standard: v1" CLAUDE.md
 - [ ] Errores TypeScript pre-existentes documentados en CLAUDE.md
 - [ ] Migración incremental a `src/features/` planificada
 - [ ] Barrels `index.ts` agregados a dominios existentes
+- [ ] Primera corrida de knip triageada (solo reporte, sin `--fix`); purga inicial en PR dedicado; recién después knip al gate
 - [ ] CLAUDE.md previo preservado en secciones manuales
+- [ ] Índice de dominios generado sobre lo que ya existe (`pnpm feature-index`); los `⚠️ sin test` y `⚠️ barrel vacío o ausente` que reporte se convierten en backlog de remediación, no bloquean la instalación

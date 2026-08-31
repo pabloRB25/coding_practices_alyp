@@ -19,7 +19,7 @@ el repo a mano ni preocuparse por diferencias de shell entre sistemas operativos
 
 Esto registra el marketplace `alyp-studio` (`.claude-plugin/marketplace.json`) e
 instala el plugin `alyp-dev-standards` (`.claude-plugin/plugin.json`), que empaqueta
-los 8 skills y los 4 agentes del ecosistema. Es la vía recomendada por defecto en
+los 10 skills y los 4 agentes del ecosistema. Es la vía recomendada por defecto en
 **cualquier** plataforma — el mecanismo `/plugin` es nativo de Claude Code e
 idéntico en macOS, Linux y Windows: no requiere `git clone`, no requiere Node ni
 un shell POSIX, y las actualizaciones futuras del plugin llegan por el mismo
@@ -77,9 +77,9 @@ Ejemplo para desarrollo del propio ecosistema:
 node scripts/install.mjs --link
 ```
 
-El script instala los 8 skills completos (`alyp-new-project`, `alyp-agentic-standards`,
-`agentic-logging`, `alyp-observability`, `alyp-qa-standard`, `devstral-orchestration`,
-`alyp-maestro`, `alyp-token-savings`) y los 4 agentes (`consultor`, `explorador`,
+El script instala los 10 skills completos (`alyp-new-project`, `alyp-agentic-standards`,
+`architecture-standards`, `agentic-logging`, `alyp-observability`, `alyp-qa-standard`,
+`devstral-orchestration`, `alyp-exec`, `alyp-maestro`, `alyp-token-savings`) y los 4 agentes (`consultor`, `explorador`,
 `implementador`, `revisor`). Además, si el skill `alyp-token-savings` está presente,
 el instalador intenta cablear su statusline y su hook en `~/.claude/settings.json`
 (ver "Requisitos por plataforma" más abajo — necesita Python 3; si no lo encuentra,
@@ -108,6 +108,7 @@ cp -R skills/agentic-logging ~/.claude/skills/agentic-logging
 mkdir -p ~/.claude/skills ~/.claude/agents
 cp -R skills/alyp-new-project        ~/.claude/skills/
 cp -R skills/alyp-agentic-standards  ~/.claude/skills/
+cp -R skills/architecture-standards  ~/.claude/skills/
 cp -R skills/agentic-logging         ~/.claude/skills/
 cp -R skills/alyp-observability      ~/.claude/skills/
 cp -R skills/alyp-qa-standard        ~/.claude/skills/

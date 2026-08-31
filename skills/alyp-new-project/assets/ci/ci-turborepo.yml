@@ -1,16 +1,22 @@
-name: CI
+# Gate DEV — red mínima sobre la rama de trabajo.
+#
+# NO es bloqueante y NO es el gate que valida el cambio: eso lo hace el gate
+# local (`pnpm verify:full`, mismo set que el Gate STG, code-standard I2).
+# Este workflow existe para que `develop` no acumule roto entre promociones
+# cuando alguien no corrió el gate local. Barato a propósito: ~4 min.
+name: Gate DEV
 
 on:
   pull_request:
-    branches: [main, staging]
+    branches: [develop]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: gate-dev-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-lint-typecheck:
-    name: Build, Lint & Typecheck
+  gate-dev:
+    name: Gate DEV
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +36,3 @@ jobs:
 
       - name: Build
         run: pnpm turbo run build
-
-      - name: Security audit
-        run: pnpm audit --audit-level=high

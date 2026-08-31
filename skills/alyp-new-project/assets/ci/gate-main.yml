@@ -1,0 +1,62 @@
+# Gate MAIN — promoción staging → main. BLOQUEANTE (qa-standard G3).
+#
+# NO repite la suíte del Gate STG: el código ya la pasó y no cambió desde
+# entonces. Lo que cambia al promover a producción es el AMBIENTE — datos,
+# variables, esquema aplicado — y eso se valida con los flujos P0 contra el
+# despliegue real de pre-producción (qa-standard G5).
+#
+# ⚠ El nombre `Gate MAIN` es parte del contrato de bloqueo (qa-standard G4):
+# renombrarlo sin actualizar branch-protection.sh deja el gate mudo.
+name: Gate MAIN
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: gate-main-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify · Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify (typecheck + lint + test)
+        run: pnpm turbo run verify
+      - name: Build
+        run: pnpm turbo run build
+
+  # Solo lectura contra pre-producción: sin reset ni seed (qa-standard P6/P7).
+  smoke:
+    name: Smoke P0 contra staging
+    uses: ./.github/workflows/smoke.yml
+    secrets: inherit
+    with:
+      base_url: ${{ vars.QA_STG_URL }}
+
+  # Único check requerido por la branch protection de `main`.
+  gate-main:
+    name: Gate MAIN
+    needs: [verify, smoke]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consolidar resultados
+        run: |
+          echo "verify=${{ needs.verify.result }} smoke=${{ needs.smoke.result }}"
+          fallo=0
+          for r in "${{ needs.verify.result }}" "${{ needs.smoke.result }}"; do
+            [ "$r" = "success" ] || fallo=1
+          done
+          if [ "$fallo" = "1" ]; then
+            echo "::error::Gate MAIN en rojo — la promoción a producción queda bloqueada"; exit 1
+          fi
+          echo "✓ Gate MAIN verde"

@@ -2,26 +2,58 @@
 """
 UserPromptSubmit hook — AVISO de contexto (NO bloquea nunca).
 
-Cuando el contexto supera THRESHOLD tokens, muestra un systemMessage al usuario
-sugiriendo /compact. Avisa una vez por tramo de 100K (200K, 300K, …), no en cada
-turno. Siempre exit 0 → jamás cuelga la sesión.
+Banda de trabajo 150K – 300K (plan de optimización de tokens, 2026-08-27):
 
-Objetivo: recordar compactar antes/durante el premium de long-context en Opus [1M].
+  150K  → piso de aviso:  "compactá cuando cierres lo que estás haciendo"
+  300K+ → techo duro:     "compactá YA"
+
+Entre 150K y 300K se trabaja sin ruido: un aviso por tramo por sesión.
+Siempre exit 0 → jamás cuelga la sesión (un exit 2 en UserPromptSubmit la cuelga).
+
+Por qué esta banda. Medido sobre 94.222 requests (30-may → 28-ago 2026): la altura
+promedio a la que se compactaba era 388.723 tokens, plena zona cara. El costo por
+request escala $0,059 (50-150K) → $0,127 (150-300K) → $0,235 (300-500K) →
+$0,435 (500-800K). Simulación del ahorro según el techo efectivo que se sostenga:
+150K → $3.600 (30% del costo) · 300K → $1.357 (11%). El ahorro lo define en qué
+borde de la banda se actúa, no la banda: por eso el escalón de 300K no repite la
+sugerencia, la endurece.
+
+El hook AVISA, no compacta: un UserPromptSubmit sólo puede emitir systemMessage,
+no puede ejecutar /compact. La compactación la hace la persona.
+
+Por eso el aviso incluye el ARGUMENTO sugerido de `/compact`, listo para pegar.
+`/compact` pelado resume sin criterio y se lleva puestas las decisiones y los caminos
+ya descartados — el síntoma es reintentar un enfoque que ya se había rechazado con
+motivo. Ese empujón tiene que estar acá y no en el hook PreCompact: PreCompact corre
+cuando la compactación YA se disparó (tarde para elegir el argumento) y además no
+admite `hookSpecificOutput`, así que no puede inyectar nada al prompt de compactación
+(verificado 2026-08-27 — ver precompact-preserve.py).
+
+Medir la altura real con: ~/.claude/scripts/token-audit.sh
 """
 import json
 import os
 import sys
 import tempfile
 
-THRESHOLD = 200_000
-BUCKET = 100_000          # avisa una vez por cada tramo de 100K
+THRESHOLD = 150_000       # piso: por debajo de esto, silencio
+BUCKET = 150_000          # avisa a 150K, 300K, 450K … una vez por tramo por sesión
+HARD_CEILING = 300_000    # a partir de acá el mensaje deja de ser una sugerencia
 TAIL_BYTES = 262_144      # solo leemos la cola del transcript (eficiente)
+
+# Listo para copiar y pegar. Corto a propósito: un argumento que no se pega, no se usa.
+COMPACT_SUGERIDO = (
+    "/compact preservá decisiones y su motivo, caminos ya descartados, "
+    "criterios de aceptación pendientes y correcciones del usuario"
+)
+
 
 def emit(system_message=None):
     """Salida no bloqueante. systemMessage lo ve el usuario, no el modelo."""
     if system_message:
         print(json.dumps({"systemMessage": system_message, "suppressOutput": True}))
     sys.exit(0)
+
 
 def main():
     try:
@@ -62,9 +94,9 @@ def main():
     )
     bucket = ctx // BUCKET
     if bucket < THRESHOLD // BUCKET:
-        emit()  # por debajo de 200K, silencio
+        emit()  # por debajo del piso, silencio
 
-    # throttle por sesión: avisar solo cuando se cruza un nuevo tramo de 100K
+    # throttle por sesión: avisar solo cuando se cruza un nuevo tramo
     sid = data.get("session_id") or "default"
     marker = os.path.join(tempfile.gettempdir(), f"claude-ctxguard-{sid}")
     last_bucket = -1
@@ -84,11 +116,22 @@ def main():
         pass
 
     k = round(ctx / 1000)
+    if ctx >= HARD_CEILING:
+        emit(
+            f"🔴 Contexto ~{k}K — pasaste el techo de {HARD_CEILING // 1000}K. "
+            f"Cada turno acá cuesta ~4x lo que costaría a 150K, y se re-lee entero.\n"
+            f"COMPACTÁ YA (o /clear si arrancás algo nuevo). Pegá:\n"
+            f"   {COMPACT_SUGERIDO}\n"
+            f"— aviso no bloqueante"
+        )
     emit(
-        f"⚠️ Contexto ~{k}K tokens (> {THRESHOLD // 1000}K). En Opus [1M] entrás en "
-        f"pricing premium de long-context y se re-lee todo el contexto cada turno. "
-        f"Considerá /compact (o /clear si arrancás algo nuevo). — aviso no bloqueante"
+        f"🟡 Contexto ~{k}K (piso {THRESHOLD // 1000}K). Buen momento para compactar "
+        f"cuando cierres lo que estás haciendo — no en medio de un debug. "
+        f"Cuanto más cerca de {THRESHOLD // 1000}K compactes, más rinde. Pegá:\n"
+        f"   {COMPACT_SUGERIDO}\n"
+        f"— aviso no bloqueante"
     )
+
 
 if __name__ == "__main__":
     main()
