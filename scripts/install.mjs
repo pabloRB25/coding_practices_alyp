@@ -30,6 +30,7 @@ const SKILLS = [
   'alyp-new-project', 'alyp-agentic-standards', 'architecture-standards',
   'agentic-logging', 'alyp-observability', 'alyp-qa-standard',
   'devstral-orchestration', 'alyp-exec', 'alyp-maestro', 'alyp-token-savings',
+  'alyp-graph',
 ];
 
 const isLink = (p) => { try { return lstatSync(p).isSymbolicLink(); } catch { return false; } };
