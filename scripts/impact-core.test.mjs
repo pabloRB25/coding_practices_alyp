@@ -3,7 +3,10 @@ import assert from 'node:assert/strict'
 import {
   buildReverseIndex, computeImpact, riskFloor, pisoDeRiesgo, groupModules,
   PATRONES_CIEGOS_AL_GRAFO,
-} from './impact-core.mjs'
+// El núcleo vive dentro del skill (skills/alyp-graph/assets/) para que el installer lo
+// distribuya junto al SKILL.md, en modo --copy tanto como --link. El test se queda acá:
+// es artefacto de desarrollo del repo, no algo que haya que instalar en cada máquina.
+} from '../skills/alyp-graph/assets/impact-core.mjs'
 
 const FIXTURE = [
   { source: 'src/lib/invitations.ts', dependencies: [{ resolved: 'src/lib/db.ts' }] },

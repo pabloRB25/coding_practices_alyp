@@ -25,7 +25,13 @@ a ser la salida de un comando.
 
 ## Uso
 
-    node /Users/parb/Dev/alyp-studio/coding_practices_alyp/scripts/graph-impact.mjs \
+El CLI viaja con este skill, en `assets/graph-impact.mjs`. Resolvelo contra el directorio
+base que el harness inyecta al cargar el skill (la línea `Base directory for this skill:`).
+Así funciona igual instalado por symlink (`--link`) que por copia (`--copy`), y con
+cualquier `--target` — no hay ninguna ruta de una máquina concreta escrita acá. En una
+instalación por defecto ese directorio es `~/.claude/skills/alyp-graph`.
+
+    node <directorio-base-del-skill>/assets/graph-impact.mjs \
       --repo <ruta absoluta del repo> \
       --file <ruta relativa> \
       --extra <lista|ninguno> \
