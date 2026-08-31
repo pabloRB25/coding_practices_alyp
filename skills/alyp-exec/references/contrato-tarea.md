@@ -52,6 +52,22 @@ Dos propiedades, ambas duras:
    producirlos. Si el ejecutor puede modificar el test que lo mide, la medición
    no vale — es la puerta abierta al reward-hacking (debilitar el test hasta que
    pase). Contrato `orchestration` invariante 7(b).
+3. **Sale del grafo más una declaración, no de la memoria.** Antes de escribir la
+   allowlist, corré `alyp-graph` sobre el archivo central de la tarea. Pegá su salida.
+
+   El comando exige `--extra` porque el grafo de imports **no puede ver** tres de las
+   nueve rutas de riesgo 2: `supabase/migrations/**`, `**/*.policy.sql` y `.env*`.
+   Declarás los que la tarea toca, o declarás `ninguno`. Esa declaración queda en el
+   contrato y G0 la audita — el silencio dejó de ser una opción.
+
+   Si agregás un archivo que el grafo no devolvió y que tampoco declaraste en `--extra`,
+   decí en una línea por qué. Las excepciones legítimas son tres: un import dinámico,
+   una ruta por convención de Next.js, o un archivo nuevo que todavía no existe. Son
+   excepciones declaradas, no silencios.
+
+   El motivo es que G2 y el piso de riesgo de G0 **se calculan los dos sobre esta
+   lista**. Una allowlist escrita de memoria hace que las dos verificaciones
+   compartan el mismo punto ciego.
 
 Cuando la tarea SÍ es escribir tests, el criterio de `verificacion` no puede ser
 "los tests pasan" (trivial de satisfacer): tiene que ser "los tests pasan **y**

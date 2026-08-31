@@ -46,6 +46,14 @@ Si el CLI corriera sin esa declaración, devolvería `riesgo_piso: 0` **justo en
 caso que este skill existe para atrapar** — y con formato de evidencia, que es peor
 que una lista escrita de memoria. Por eso sale con código 3 y no emite nada.
 
+**Otros códigos de salida** (ninguno emite bloque pegable salvo el 0):
+`2` argumentos o rutas inválidas · `3` falta `--extra` · `4` la allowlist supera el
+techo de 40 (emite el bloque, pero partí la tarea) · `5` el archivo objetivo no entró
+al grafo. El 5 importa: un radio calculado sin el archivo objetivo es **vacío**, no
+es 0, y son indistinguibles al mirar la salida. Suele significar que el repo no tiene
+`node_modules` instalado —`dependency-cruiser` decide qué extensiones escanear según
+si puede resolver `typescript`— o que el path no es relativo a la raíz del repo.
+
 - `--extra supabase/migrations/0007_x.sql` → la tarea toca eso. El piso sube a 2.
 - `--extra ninguno` → declarás que no toca ninguno. Queda registrado en la salida,
   y G0 audita **esa declaración**, no el silencio.

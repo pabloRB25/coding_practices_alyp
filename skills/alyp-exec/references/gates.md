@@ -79,6 +79,25 @@ El perfil del repo puede ampliar la lista, nunca recortarla. Se calcula sobre la
 allowlist declarada —antes de ejecutar— y su salida entra al paquete de G0 como
 dato, no como opinión del loop.
 
+Eso lo vuelve exactamente tan bueno como la allowlist — y por eso la allowlist ya
+no se declara de memoria: sale de `alyp-graph` (propiedad 3 de `archivos:` en
+`contrato-tarea.md`).
+
+**G0 verifica esa procedencia, y audita las dos mitades distinto.** El paquete que
+recibe el firmante incluye la salida cruda de `alyp-graph`, no solo la lista final.
+
+- **Lo que midió el grafo** se re-ejecuta: todo archivo que el grafo devolvió y la
+  allowlist omite es un `corregir:`. La omisión es el camino por el que un riesgo 2
+  se presenta como riesgo 0.
+- **Lo que aportó la declaración `--extra`** se cuestiona, porque no se midió. Tres
+  de las nueve rutas de riesgo 2 —`supabase/migrations/**`, `**/*.policy.sql`,
+  `.env*`— son invisibles para un grafo de imports: no son módulos. Un
+  `--extra ninguno` en una tarea que crea una tabla, cambia una policy o toca una
+  variable de entorno es un `corregir:`, aunque el CLI haya salido en verde.
+
+**El firmante no puede delegar en el grafo la pregunta "¿esto toca la base?".** El
+grafo contesta "quién importa a quién". Esa otra pregunta sigue siendo de G0.
+
 ---
 
 ## G1 · Re-ejecución independiente
