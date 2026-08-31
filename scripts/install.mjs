@@ -26,12 +26,15 @@ for (let i = 0; i < argv.length; i++) {
   else { console.error(`arg desconocido: ${a}`); process.exit(2); }
 }
 
-const SKILLS = [
-  'alyp-new-project', 'alyp-agentic-standards', 'architecture-standards',
-  'agentic-logging', 'alyp-observability', 'alyp-qa-standard',
-  'devstral-orchestration', 'alyp-exec', 'alyp-maestro', 'alyp-token-savings',
-  'alyp-graph',
-];
+// Los skills se descubren del repo, no se enumeran: una lista hardcodeada se desincroniza
+// en silencio. Pasó con alyp-graph — se agregó a skills/ y el installer siguió reportando
+// "Instalación completa" sin instalarlo, que es el peor modo de falla posible acá.
+// check-drift.mjs ya recorre todo skills/; derivar la lista del disco los mantiene de
+// acuerdo por construcción en vez de por disciplina.
+const SKILLS = readdirSync(join(REPO_DIR, 'skills'), { withFileTypes: true })
+  .filter((e) => e.isDirectory())
+  .map((e) => e.name)
+  .sort();
 
 const isLink = (p) => { try { return lstatSync(p).isSymbolicLink(); } catch { return false; } };
 
