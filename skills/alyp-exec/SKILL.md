@@ -1,6 +1,6 @@
 ---
 name: alyp-exec
-version: 1.1.0
+version: 1.2.0
 provides: [execution-loop]
 requires: [orchestration]
 description: >
@@ -71,6 +71,14 @@ Idénticas en ambos modos (§9). Son el contrato del sistema.
 **F0 · Encuadre** (vos, inline). Clasificás riesgo (§7.2), particionás y emitís
 contratos.
 
+**El encuadre no termina con el contrato escrito: termina con el oráculo en
+rojo.** Nombrás el `oraculo` de cada tarea, materializás sus asserts (mecánico →
+cascada local o riesgo 0) y corrés **G1↓**: el `verificacion` tiene que fallar,
+y fallar por el objetivo ausente. Esa salida se pega en `rojo_esperado`. Sin
+ella, el verde de G1↑ no distingue "lo implementó" de "el comando nunca midió
+nada" — y el rojo no puede reportarlo el ejecutor, porque es la parte juzgada
+(R6). Detalle en `references/gates.md` §G1↓.
+
 **F0b · Firma de contratos — G0** (razonador invocado, contexto fresco). Antes de
 despachar, los contratos de riesgo ≥1 van a firma con el paquete acotado de
 `references/gates.md` §G0: objetivo de la ola, los N contratos, el piso de riesgo
@@ -132,7 +140,7 @@ concretos por stack en `references/gates.md`.
 
 | Gate | Qué hace | Por qué es independiente |
 |---|---|---|
-| **G1 · Re-ejecución** | Corrés el `verificacion` literal del contrato, de tu lado. Un `Bash` por tarea o uno agregado por ola. | Ese comando lo escribiste vos **antes** de que el ejecutor trabajara. Esa anterioridad es lo que lo vuelve falsable. |
+| **G1 · Re-ejecución** | El mismo `verificacion`, corrido por vos a ambos lados del trabajo: **G1↓** en rojo en F0, **G1↑** en verde al volver. Un `Bash` por tarea o uno agregado por ola. | Ese comando lo escribiste vos **antes** de que el ejecutor trabajara, y lo viste fallar. Anterioridad + demostración del rojo es lo que lo vuelve falsable. |
 | **G2 · Allowlist** | `git diff --name-only` contra la allowlist. Archivo fuera = `❌` automático, sin juicio. | Binario, no interpretable. Junto con la exclusión de tests del contrato, cierra el reward-hacking. |
 | **G3 · Gate de ola** | Typecheck + suite completa antes de despachar la ola siguiente. | La partición por archivos disjuntos **no** garantiza independencia semántica (tipos compartidos, contratos de API). Es lo único que caza integración rota entre tareas individualmente verdes. |
 

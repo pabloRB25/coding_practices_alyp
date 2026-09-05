@@ -12,8 +12,11 @@ nivel:         opus | sonnet | haiku
 riesgo:        0 | 1 | 2        # ≥1 exige firma G0 antes de despachar
 archivos:      <allowlist explícita — NO tocar nada fuera de esta lista>
 contratos:     <firmas, tipos e interfaces PEGADAS acá, no referenciadas>
+oraculo:       test | contrato | postcondicion | browser | eval | estructural
 verificacion:  <comando literal>
                # criterio: exit 0 Y >0 casos ejecutados
+rojo_esperado: <salida literal del `verificacion` corrido ANTES de implementar —
+               o `no aplica: <por qué>`>
 prohibido:     <lo que no debe tocar ni asumir>
 presupuesto:   <máx. intentos propios antes de devolver ❌; default 2>
 ```
@@ -74,6 +77,26 @@ Cuando la tarea SÍ es escribir tests, el criterio de `verificacion` no puede se
 fallan contra la implementación rota" — o el test se escribe primero, en rojo,
 por quien implementa (TDD), y esta tarea solo agrega cobertura mecánica.
 
+### `oraculo` — elegilo antes de escribir el `verificacion`
+
+El `verificacion` es un comando; el **oráculo** es qué clase de evidencia produce
+ese comando. Elegirlo primero evita el peor patrón del sistema: forzar un unit
+test donde el comportamiento no es testeable en unidad y terminar con un test
+decorativo — que es **peor que ningún test**, porque convierte el gate en sello
+de goma sin que nadie lo note.
+
+| Trabajo | `oraculo` | Qué tiene que fallar antes |
+|---|---|---|
+| Lógica, endpoint, query, componente con comportamiento | `test` | el assert, con su mensaje |
+| Firma, tipo o schema público que otras tareas consumen | `contrato` | typecheck en rojo, o el schema rechazando el fixture |
+| Migración, backfill, cambio de datos | `postcondicion` | la query de post-condición devuelve el estado previo |
+| UI, layout, comportamiento visual | `browser` | el flujo en el estado previo (screenshot + consola), vía chrome-devtools |
+| Salida no determinista (LLM, ranking, scoring) | `eval` | el eval bajo el umbral con la implementación previa |
+| Codemod, scaffold, formato, JSDoc, barrels | `estructural` | nada — se declara `rojo_esperado: no aplica` |
+
+**Si no podés nombrar el oráculo, la tarea no está lista.** Le falta diseño, no
+ejecución. Un spike se hace, se tira, y recién después se escribe el contrato.
+
 ### `verificacion` — literal, y con guarda de vacío
 
 El comando se pega tal cual se va a correr. Sirve para tres cosas a la vez: el
@@ -83,6 +106,41 @@ trabajo es lo que vuelve falsable el veredicto.
 > **Guarda obligatoria**: exit 0 no alcanza. Un comando que matchea 0 casos sale
 > 0 y no probó nada. El criterio siempre es **exit 0 Y >0 casos ejecutados**. Ver
 > `references/gates.md` para las formas concretas por runner.
+
+### `rojo_esperado` — la prueba de que el criterio muerde
+
+La guarda de vacío caza el verde hueco (0 casos ejecutados). No caza el otro
+falso verde, que es peor: **un oráculo que nunca pudo fallar**. Un `verificacion`
+escrito contra código que ya existe pasa a la primera y no prueba nada.
+
+Por eso el contrato no está completo hasta que el comando **se corrió en rojo** y
+su salida quedó pegada acá.
+
+**Quién lo corre**: vos, en F0, antes de despachar. Nunca el ejecutor — mismo
+invariante de siempre (R6 / `orchestration` 7): la evidencia que decide un
+veredicto la genera quien juzga. Un rojo que reporta el ejecutor no es evidencia
+de nada, y además llega tarde: cuando ya escribió el código.
+
+**Criterio único de validez**: el rojo tiene que desaparecer **exactamente**
+cuando el objetivo se cumple, y por ninguna otra razón. La taxonomía completa de
+rojo falso está en `references/gates.md` §G1↓.
+
+**De dónde sale el archivo del oráculo.** El rojo exige que el oráculo exista
+antes de la ola — y la allowlist del ejecutor lo excluye (propiedad 2 de
+`archivos`). Las dos reglas no se contradicen: fijan el flujo.
+
+1. Los asserts los escribe quien redacta el contrato —literales, en el plan
+   (skill local `planificar`) o acá mismo—, nunca quien implementa.
+2. Materializarlos en archivo es mecánico y verificable → **cascada local** o
+   tarea de riesgo 0. No gasta tu contexto.
+3. Vos corrés el comando y pegás la salida del rojo en `rojo_esperado`.
+4. La tarea de implementación se despacha con ese archivo **fuera** de su
+   allowlist.
+
+**`no aplica` es salida legítima, pero declarada**, nunca silenciosa:
+`rojo_esperado: no aplica — oráculo estructural (typecheck)`. Vale para el
+oráculo `estructural` y para la tarea cuyo entregable *es* el oráculo. G0 la
+audita igual que audita un `--extra ninguno`.
 
 ### `riesgo` — decide cuánto juicio se le aplica al resultado
 
@@ -121,7 +179,12 @@ contratos:     type Reserva = { id: string; huespedId: string; fechaEntrada: Dat
                // patrón a imitar: src/features/huespedes/queries.ts:14-38
                // cliente db: import { db } from '@/lib/db'  → db.query.reservas
                // el barrel exporta named, nunca default
+oraculo:       test
 verificacion:  pnpm vitest run src/features/reservas/queries.test.ts --reporter=verbose
+rojo_esperado: FAIL queries.test.ts > excluye las canceladas
+               TypeError: listarReservasPorHuesped is not a function
+               # símbolo que crea esta tarea → rojo genuino, pero débil:
+               # el verde tiene que llegar por assert, no por mera existencia
 prohibido:     tocar el schema de Drizzle; agregar dependencias; modificar tests
 presupuesto:   2
 ```

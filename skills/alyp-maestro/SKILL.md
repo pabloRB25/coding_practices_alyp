@@ -1,6 +1,6 @@
 ---
 name: alyp-maestro
-version: 1.0.0
+version: 1.1.0
 provides: [curaduria]
 description: >
   Curador del conocimiento LOCAL de un proyecto Alyp. Tras cerrar una feature o
@@ -123,6 +123,126 @@ este proyecto: la usa quien descompone el trabajo en este repo (vos en Opus, o
 Recoge la metodología de planificación de ESTE proyecto: cómo trocear, qué
 granularidad funciona, qué prerrequisitos respetar, qué orden. El maestro la
 crea y la mantiene viva con lo aprendido, como cualquier otra skill local.
+
+El maestro instala esta plantilla en `.claude/skills/planificar/SKILL.md` de cada
+repo cliente. Lo de abajo es el **piso** —doctrina del ecosistema, igual en todos
+los repos—; encima el maestro acumula lo propio de ESTE repo: la granularidad que
+funcionó, los prerrequisitos, el orden.
+
+```markdown
+---
+name: planificar
+description: Metodología de troceo de ESTE repo. Usar al descomponer un spec en
+  tareas, después de `especificar` y antes de emitir contratos (alyp-exec F0).
+---
+
+## La unidad
+
+Una tarea es una **rebanada vertical de comportamiento observable** que cabe en
+un ciclo rojo→verde→refactor, con **un oráculo propio**, un **Boundary cerrado**
+y un commit revisable. Si le falta uno de los cuatro no es una tarea: es una
+épica (partir) o un paso interno (fusionar).
+
+> **La granularidad óptima es la tarea más grande que todavía cabe en un solo
+> ciclo verificable.** Más grande, se pierde el criterio de "hecho". Más chica,
+> pagás re-ingesta de contexto sin ganar verificación.
+
+Y el corolario que casi todos se saltan: **descomponer sin gate entre tareas es
+peor que no descomponer** — un fallo a mitad de una lista plana re-ejecuta todo
+lo que viene después.
+
+## Esquema de tarea
+
+Los campos existen para traducirse mecánicamente al Contrato de Tarea:
+
+    ## T-XX · <verbo> <comportamiento observable>
+    Boundary:  archivos que puede tocar (lista cerrada, salida de alyp-graph)
+    Depends:   T-YY, T-ZZ
+    Produces:  firmas / tipos / schema exactos que otras tareas consumen
+    Consumes:  lo que toma de tareas previas, con firma exacta
+    Oráculo:   test | contrato | postcondicion | browser | eval | estructural
+    Rojo:      3-7 asserts observables, literales
+
+| Campo del plan | Campo del contrato (alyp-exec) |
+|---|---|
+| `Boundary` | `archivos:` |
+| `Produces` / `Consumes` | `contratos:` (pegados, no referenciados) |
+| `Oráculo` | `oraculo:` |
+| `Rojo` | `verificacion:` + `rojo_esperado:` |
+| `Depends` | orden de olas — misma ola exige archivos disjuntos |
+
+**`Produces` reemplaza las "notas" que una tarea le deja a la siguiente.** Lo que
+cruza el borde entre tareas tiene que ser contrato tipado que el typecheck valida.
+Prosa escrita por un agente es un canal sin verificación: propaga errores aguas
+abajo sin que nada los frene.
+
+## MUST
+
+- **Nombrar el oráculo antes de escribir el rojo.** La tabla por tipo de trabajo
+  vive en `alyp-exec/references/contrato-tarea.md` — no la repitas acá.
+- **El rojo lo escribe quien planifica, nunca quien implementa.** Si el mismo
+  contexto produce criterio e implementación, el criterio se adapta al código.
+- **El rojo se demuestra fallando antes de tocar producción** (G1↓), y falla por
+  el objetivo ausente, no por un import roto.
+- **Rebanada vertical**: cada tarea deja software que funciona por sí solo.
+- Un comportamiento por assert · una tarea por contexto · un commit por tarea.
+- **`Boundary` sale del grafo** (`alyp-graph`), no de la memoria.
+- Gate por tarea (G1/G2) y **gate de ola** (G3) antes de la siguiente.
+- Ante fallo, **clasificar la causa antes de reintentar** —contrato ambiguo,
+  ejecución, o entorno— y reintentar **solo** la tarea fallida.
+- Debilitar el oráculo para pasar a verde se escala, no se hace. Mecánicamente ya
+  está cerrado: el oráculo queda fuera del `Boundary`.
+
+## SHOULD
+
+- **Riesgo por tarea (0/1/2)**, para que la ceremonia sea proporcional: un cambio
+  de copy y una policy de RLS no pueden costar lo mismo.
+- **Mutation testing** sobre módulos críticos, **periódico y nunca por tarea**:
+  por tarea revienta el ciclo y los 15 minutos de review.
+
+## MAY
+
+- **Feature flag solo en la rebanada que llega a producción** antes de que la
+  feature esté completa. Una flag por tarea es dead code combinatorio más ramas
+  que el oráculo también tiene que cubrir: confunde unidad de trabajo con unidad
+  de release.
+
+## MUST NOT
+
+- Descomponer por capas (todo el schema → todos los endpoints → toda la UI).
+- Generar oráculo e implementación en la misma pasada.
+- Encadenar tareas sin gate de validación entre ellas.
+- Usar prosa como dependencia entre tareas.
+- Planificar una tarea cuyo oráculo no sabés nombrar. Eso es un spike: se hace,
+  se tira, y recién después se planifica.
+
+## Umbrales
+
+| Métrica | Objetivo | Acción si se excede |
+|---|---|---|
+| **¿El contrato cierra sin que el ejecutor explore?** | sí | **Es el umbral que manda.** Si no cierra: falta reconocimiento (F1) o falta diseño |
+| Archivos tocados | 3-8 | >8 → partir; <2 → mirar si es un paso interno |
+| Asserts del rojo | 3-7 | >7 → la rebanada tiene dos comportamientos |
+| LOC de producción | 150-400 | señal, nunca gate |
+| Review humano | ≤15 min | partir |
+
+Dos métricas que **no** son umbral, a propósito:
+
+- **Tokens de contexto por tarea.** El contexto del ejecutor se paga una vez y
+  muere con él; lo caro es el del loop. La restricción real es que el contrato
+  cierre — y eso es verificable al escribirlo, no estimable.
+- **Ratio test:código.** Gameable con tests verbosos, y un agente optimiza a la
+  métrica que le pongas. El criterio honesto: **cada assert debe poder nombrar el
+  cambio de producción que lo haría fallar.**
+
+## Ready / Done
+
+**Ready** — oráculo nombrado · asserts del rojo escritos · rojo demostrado y
+genuino · `Boundary` salido del grafo · `Depends` en verde · contrato cerrado.
+
+**Done** — rojo demostrado → verde mínimo → refactor en verde · G1/G2/G3 en verde
+· `Produces` publicado con las firmas reales · diff dentro del `Boundary`.
+```
 
 ## Acción: `curar`
 

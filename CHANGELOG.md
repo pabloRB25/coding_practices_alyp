@@ -1,5 +1,37 @@
 # Changelog
 
+## v3.1.0 — 2026-09-05
+
+### El oráculo se demuestra en rojo antes de la ola; el troceo gana doctrina
+
+Cierra el último hueco del invariante 7. La guarda de vacío cazaba el verde hueco
+(0 casos ejecutados), pero nada cazaba **un oráculo que nunca pudo fallar**: un
+`verificacion` escrito contra código que ya existe pasa a la primera y no prueba
+nada. Y el rojo no puede reportarlo el ejecutor —es la parte juzgada—, así que
+tenía que moverse antes de la ola, del lado del loop.
+
+- **`alyp-exec` → v1.2.0.** F0 no termina con el contrato escrito: termina con el
+  oráculo en rojo.
+- **`contrato-tarea.md`**: campos nuevos **`oraculo:`** y **`rojo_esperado:`**, y
+  tabla de oráculos por tipo de trabajo (`test` · `contrato` · `postcondicion` ·
+  `browser` · `eval` · `estructural`). Forzar un unit test donde el comportamiento
+  no es testeable en unidad produce un test decorativo — peor que ningún test,
+  porque vuelve el gate un sello de goma sin que nadie lo note.
+- **`gates.md`**: **G1 se parte en G1↓ (rojo, F0) y G1↑ (verde, F4a)** — el mismo
+  comando corrido por el loop a ambos lados del trabajo. Taxonomía de rojo falso
+  (módulo que la tarea no crea, `SyntaxError`, 0 casos) bajo un criterio único:
+  *el rojo tiene que desaparecer exactamente cuando el objetivo se cumple, y por
+  ninguna otra razón*. La salida del rojo entra al paquete de G0 y convierte su
+  pregunta más cara —"¿el `verificacion` ejerce el objetivo?"— de especulación en
+  dato.
+- **`alyp-maestro` → v1.1.0.** La skill fija **`planificar`** deja de ser un
+  título sin cuerpo: gana la plantilla base del troceo (rebanada vertical, esquema
+  de tarea que traduce 1:1 al contrato, MUST/SHOULD/MAY/MUST NOT, umbrales,
+  Ready/Done). `Produces`/`Consumes` tipados reemplazan las notas en prosa entre
+  tareas. Se descartan dos umbrales gameables: tokens por tarea (el contexto del
+  ejecutor muere con él; la restricción real es que el contrato cierre) y ratio
+  test:código.
+
 ## v3.0.0 — 2026-08-28
 
 ### El loop orquestador baja a tier obrero; el razonador pasa a firmante invocado
