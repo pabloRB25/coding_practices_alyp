@@ -1,6 +1,6 @@
 ---
 name: alyp-exec
-version: 1.2.0
+version: 1.3.0
 provides: [execution-loop]
 requires: [orchestration]
 description: >
@@ -142,7 +142,8 @@ concretos por stack en `references/gates.md`.
 |---|---|---|
 | **G1 · Re-ejecución** | El mismo `verificacion`, corrido por vos a ambos lados del trabajo: **G1↓** en rojo en F0, **G1↑** en verde al volver. Un `Bash` por tarea o uno agregado por ola. | Ese comando lo escribiste vos **antes** de que el ejecutor trabajara, y lo viste fallar. Anterioridad + demostración del rojo es lo que lo vuelve falsable. |
 | **G2 · Allowlist** | `git diff --name-only` contra la allowlist. Archivo fuera = `❌` automático, sin juicio. | Binario, no interpretable. Junto con la exclusión de tests del contrato, cierra el reward-hacking. |
-| **G3 · Gate de ola** | Typecheck + suite completa antes de despachar la ola siguiente. | La partición por archivos disjuntos **no** garantiza independencia semántica (tipos compartidos, contratos de API). Es lo único que caza integración rota entre tareas individualmente verdes. |
+| **G3 · Gate de ola** | Typecheck/lint de lo afectado + los `verificacion` de **todas** las tareas de la ola, juntos, sobre la rama integrada. **Nunca la suite completa.** | La partición por archivos disjuntos **no** garantiza independencia semántica (tipos compartidos, contratos de API). Es lo único que caza integración rota entre tareas individualmente verdes — y para eso basta el lote, no el repo. |
+| **G4 · Gate de cierre** | La suite completa del repo (`pnpm verify`, pgTAP entero, e2e), **una sola vez**, al integrar y cerrar el plan. | Caza lo que ningún oráculo acotado mira (regresiones lejos de lo tocado). Correrla en cada tarea u ola cuesta horas sin cazar más que G1+G3. |
 
 Los tres son comandos, no razonamiento: re-ejecutar cuesta órdenes de magnitud
 menos que releer diffs. Con G1–G3 en su lugar, el muestreo adversarial es
@@ -174,6 +175,11 @@ precaución.
 
 **F5 · Integración**: actualizás `estado.md`, armás la ola siguiente, y sintetizás
 para el usuario **solo al cierre** (no ola por ola).
+
+**Cierre del plan**: tras la última ola corrés **G4** (`references/gates.md` §G4),
+la única corrida de suites completas. Si falla, se clasifica como abajo, se arregla
+con su contrato y se re-ejecutan **solo** los archivos que fallaron más los
+oráculos de lo tocado; G4 se repite **una** vez para confirmar.
 
 **Ante `❌`, clasificá la falla antes de escalar** — escalar sin clasificar quema
 presupuesto:

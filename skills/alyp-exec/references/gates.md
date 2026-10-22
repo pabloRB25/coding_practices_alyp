@@ -1,4 +1,4 @@
-# Gates G0 · G1 · G2 · G3
+# Gates G0 · G1 · G2 · G3 · G4
 
 **G1–G3 son mecánicos**: piso de aceptación de **todo** trabajo delegado, en
 **todo** nivel de riesgo —incluido riesgo 0—, y son comandos, no razonamiento:
@@ -15,7 +15,12 @@ contra quien lo escribió. Implementa el invariante 8.
 | **G1↓** | antes de la ola (F0) | el loop | comando — el oráculo en **rojo** |
 | **G1↑** | por tarea / por ola | el loop | comando — el oráculo en **verde** |
 | **G2** | por tarea | el loop | comando |
-| **G3** | antes de la ola siguiente | el loop | comando |
+| **G3** | antes de la ola siguiente | el loop | comando — acotado a la ola |
+| **G4** | una vez, al cerrar el plan | el loop | comando — suite completa |
+
+**Regla de alcance**: G1, G2 y G3 prueban **solo lo que la tarea u ola construye o
+cambia**. La suite completa del repo vive en G4 y corre una sola vez. Un gate de
+tarea u ola que la invoque es un contrato mal escrito: G0 lo rechaza.
 
 ---
 
@@ -199,14 +204,19 @@ Cuando la tarea SÍ es escribir tests, ver la nota correspondiente en
 
 ## G3 · Gate de ola (integración)
 
-Antes de despachar la ola siguiente:
+Antes de despachar la ola siguiente, sobre la rama con la ola integrada:
 
 ```bash
-rtk npm run typecheck && rtk vitest run
+pnpm turbo run typecheck lint --filter='...[<base de la ola>]'   # o tsc/eslint de lo afectado
+rtk vitest run <rutas de los verificacion de TODAS las tareas de la ola> --reporter=verbose
+# + pgTAP / playwright solo de los archivos de esos contratos
 ```
 
-o el gate del repo si lo tiene declarado (`pnpm verify` en repos con
-`agentic-standard: v1`).
+Es el **lote** junto (invariante 7c), no el repo. Prohibido en G3: `pnpm verify`,
+`vitest run` sin rutas, `supabase test db` sin archivos, e2e completos. Si el repo
+declara un gate propio que corre la suite entera (`pnpm verify` en repos con
+`agentic-standard: v1`), ese gate va a **G4**, no acá. Si el plan declara su
+`G3_ola`, manda el del plan siempre que respete esta regla.
 
 **Por qué existe**: la partición por archivos disjuntos de F0 garantiza que las
 tareas no se pisen en disco — **no** garantiza que sean independientes en
@@ -218,6 +228,33 @@ G3 es lo único del sistema que caza **integración rota entre tareas verdes**.
 > Un `❌` de G3 no es falla de una tarea: es falla de ola. No lo mandes de vuelta
 > a un solo ejecutor — clasificá primero (§8 del SKILL) y armá una tarea de
 > integración con su propio contrato.
+
+---
+
+## G4 · Gate de cierre (suite completa, una vez)
+
+Al integrar y cerrar el plan —después de la última ola, antes del veredicto de
+merge final y de cualquier PR a la rama principal—:
+
+```bash
+pnpm verify            # o el gate completo del repo: lint, typecheck, TODOS los tests
+supabase test db       # todo pgTAP, si el repo lo usa
+# + e2e / recorrido de punta a punta, si el plan lo define
+```
+
+**Por qué una sola vez**: G1 y G3 ya probaron cada contrato y cada lote. Lo único
+que G4 agrega es lo que ningún oráculo acotado mira —regresiones lejos de lo
+tocado—, y eso no cambia ola a ola. Correr la suite en cada tarea u ola costó
+10,4 h en una sola tarea (FaciliGroup L9-BAJA) sin cazar nada que G1+G3 no cazara.
+
+**Si falla**: clasificá (§8 del SKILL), arreglá con un contrato propio y
+re-ejecutá **solo** los archivos que fallaron más los oráculos de lo tocado. G4
+se repite **una** vez para confirmar el cierre; nunca por cada arreglo. Registrá
+el comando y su duración en `.claude/run/<slug>/gates/cierre.txt`.
+
+Un plan con etapas que se entregan por separado puede declarar un cierre de etapa
+**liviano** (cobertura de contrato, pgTAP de sus migraciones, humo HTTP); la suite
+completa sigue siendo solo de G4.
 
 ---
 

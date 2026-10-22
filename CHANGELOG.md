@@ -1,5 +1,26 @@
 # Changelog
 
+## v3.2.0 — 2026-10-21
+
+### Pruebas acotadas durante la ejecución; la suite completa, una vez al cierre
+
+G3 decía "typecheck + suite completa antes de cada ola". En un plan de 25 olas eso
+son 25 corridas de la suite entera, y la suite crece ola a ola: horas de prueba que
+no cazan nada que G1 (cada contrato) más el lote de la ola no hayan cazado ya. En
+FaciliGroup L9-BAJA una sola tarea tardó 10,4 h por correr `verify` en cada vuelta.
+
+- **`alyp-exec` → v1.3.0** (v1.2.0 archivada en `skills/alyp-exec/versions/`).
+- **G3 acotado**: typecheck/lint de lo afectado + los `verificacion` de todas las
+  tareas de la ola, juntos, sobre la rama integrada. Prohibidos `pnpm verify`,
+  `vitest run` sin rutas, `supabase test db` sin archivos y e2e completos. El
+  invariante 7(c) ("el lote se verifica entero") se cumple con el lote, no con el
+  repo: `contracts/orchestration.md` no cambia.
+- **G4 · Gate de cierre, nuevo**: la suite completa del repo corre **una sola vez**,
+  al integrar y cerrar el plan. Si falla, se arregla con contrato propio, se
+  re-ejecutan solo los archivos que fallaron y G4 se repite una vez.
+- **`contrato-tarea.md`**: el `verificacion` nombra rutas explícitas de los
+  oráculos de la tarea; el ejecutor itera con ese comando, no con la suite.
+
 ## v3.1.0 — 2026-09-05
 
 ### El oráculo se demuestra en rojo antes de la ola; el troceo gana doctrina

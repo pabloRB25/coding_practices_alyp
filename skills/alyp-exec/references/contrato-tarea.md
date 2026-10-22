@@ -107,6 +107,11 @@ trabajo es lo que vuelve falsable el veredicto.
 > 0 y no probó nada. El criterio siempre es **exit 0 Y >0 casos ejecutados**. Ver
 > `references/gates.md` para las formas concretas por runner.
 
+> **Alcance obligatorio**: el comando nombra **rutas explícitas** de los oráculos
+> de esta tarea (tests, pgTAP, specs). Prohibido: `pnpm verify`, `vitest run` sin
+> rutas, `supabase test db` sin archivos, e2e completos. La suite completa es de
+> G4, al cerrar el plan. El ejecutor itera con este mismo comando, no con la suite.
+
 ### `rojo_esperado` — la prueba de que el criterio muerde
 
 La guarda de vacío caza el verde hueco (0 casos ejecutados). No caza el otro
