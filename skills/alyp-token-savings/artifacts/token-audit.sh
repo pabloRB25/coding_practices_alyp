@@ -74,11 +74,15 @@ find "$PROJECTS" -name '*.jsonl' -print0 \
 cat "$WORK"/t/*.tsv 2>/dev/null | awk -F'\t' '!s[$1"|"$2]++' > "$WORK/tools.tsv"
 
 # ── precios de lista (USD/MTok): input, output=5x; cache write 1,25x; cache read 0,1x
+# Fuente: skill claude-api, Current Models (cached: 2026-10-06). Haiku 5.5: 0,10 hasta 100K de prompt, 0,50 arriba.
 read -r -d '' PRICE <<'AWK'
-function pin(m){ if(m~/opus/) return 5; if(m=="claude-sonnet-5") return 2;
-  if(m=="claude-sonnet-4-6") return 3; if(m~/haiku/) return 1;
+function pin(m, pr){ if(m=="claude-opus-5-5") return 4; if(m~/opus/) return 5;
+  if(m=="claude-sonnet-5" || m=="claude-sonnet-5-5") return 2;
+  if(m=="claude-sonnet-4-6") return 3;
+  if(m=="claude-haiku-5-5") return (pr>100000 ? 0.50 : 0.10);
+  if(m~/haiku/) return 1;
   if(m~/fable/ || m~/mythos/) return 10; return 0 }
-function cost(m,i,o,cc,cr,  p){ p=pin(m); if(p==0) return 0
+function cost(m,i,o,cc,cr,  p){ p=pin(m, i+cc+cr); if(p==0) return 0
   return (i*p + o*p*5 + cc*p*1.25 + cr*p*0.10)/1e6 }
 AWK
 

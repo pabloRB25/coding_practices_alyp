@@ -1,5 +1,13 @@
 # Changelog
 
+## Sin versionar — 2026-10-29
+
+### IDs de modelo vigentes (5.5 / 5.1) y precios en token-audit
+
+- `capacity.example.yaml` y `devstral-orchestration/SKILL.md`: opus-5-5, sonnet-5-5, fable-5-1, haiku-5-5.
+- `token-audit.sh`: precios de lista de los modelos vigentes (Haiku 5.5 con tramo por tamaño de prompt); históricos intactos.
+- `RTK.md`: `rtk bypass` (rtk 1.0 renombró `proxy`, que sigue como alias).
+
 ## v3.2.0 — 2026-10-21
 
 ### Pruebas acotadas durante la ejecución; la suite completa, una vez al cierre

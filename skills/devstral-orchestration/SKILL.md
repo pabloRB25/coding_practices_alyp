@@ -108,7 +108,7 @@ prompt declara qué modelo sos ("You are powered by …"). Ramificá:
 | Sos | Modo | Reglas |
 |---|---|---|
 | **Sonnet** | **Estándar** | Todo este skill tal cual. Routeás, descomponés en contratos, despachás olas, corrés G1–G3 y sintetizás. **No firmás**: los contratos de riesgo ≥1 van a G0 y los diffs de riesgo 2 a firma, ambos con `revisor`/`implementador` en `model:"opus"`. Nunca resolvés seguridad crítica por tu cuenta. |
-| **Opus** | Excepcional | El usuario te eligió como loop a mano. Orquestá igual, y en ese caso firmás vos: G0 y riesgo 2 se resuelven inline, sin invocación aparte (sos el tier razonador). Avisá UNA vez que el modo estándar del equipo es Sonnet (`/model claude-sonnet-5`) y que el loop Opus cuesta ~5× por token en el tramo >300K. |
+| **Opus** | Excepcional | El usuario te eligió como loop a mano. Orquestá igual, y en ese caso firmás vos: G0 y riesgo 2 se resuelven inline, sin invocación aparte (sos el tier razonador). Avisá UNA vez que el modo estándar del equipo es Sonnet (`/model claude-sonnet-5-5`) y que el loop Opus cuesta ~5× por token en el tramo >300K. |
 | **Fable** | Excepcional | Loop elegido a mano. Orquestá igual y firmá vos; el `consultor` NO aplica (sos el techo). Avisá UNA vez que el modo estándar es Sonnet. |
 | **Haiku** | **No apto** | No orquestes. Avisá y pedí cambio de modelo: el loop escribe los contratos, y un contrato mal escrito deja huecos los tres gates mecánicos. |
 
