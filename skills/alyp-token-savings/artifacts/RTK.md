@@ -108,7 +108,7 @@ docker compose build api 2>&1 | grep -E "error|failed" | head
 rtk gain              # Analítica de ahorro de tokens
 rtk gain --history    # Historial de comandos con ahorro
 rtk discover          # Analiza el historial y detecta oportunidades perdidas
-rtk proxy <cmd>       # Ejecuta comando crudo sin filtrar (debug)
+rtk bypass <cmd>     # Ejecuta comando crudo sin filtrar (debug); `proxy` sigue como alias
 ```
 
 ## Verificación de instalación
