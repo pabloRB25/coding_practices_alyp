@@ -179,7 +179,7 @@ abajo sin que nada los frene.
 ## MUST
 
 - **Nombrar el oráculo antes de escribir el rojo.** La tabla por tipo de trabajo
-  vive en `alyp-exec/references/contrato-tarea.md` — no la repitas acá.
+  vive en el `contrato-tarea.md` del skill `alyp-exec` — no la repitas acá.
 - **El rojo lo escribe quien planifica, nunca quien implementa.** Si el mismo
   contexto produce criterio e implementación, el criterio se adapta al código.
 - **El rojo se demuestra fallando antes de tocar producción** (G1↓), y falla por
