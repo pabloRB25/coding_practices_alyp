@@ -6,15 +6,17 @@ Claude Code invoca este script en cada turno y pasa por stdin un JSON con
 session_id, transcript_path, model, cwd, cost, exceeds_200k_tokens, etc.
 La primera línea de stdout se muestra como barra de estado.
 
-Muestra: modelo · contexto ~NK (P%) · rama git · costo — con color según el
-umbral de 200K (premium long-context en Opus [1M]).
+Muestra: modelo · contexto NK/ventana (P%) · rama git · costo — con color
+según el umbral de 200K (premium long-context) o el % de la ventana, lo que
+llegue primero. La ventana sale de `context_window.context_window_size`, que
+Claude Code ajusta al modelo vigente (200K, 1M…).
 """
 import json
 import os
 import subprocess
 import sys
 
-WINDOW = 1_000_000       # ventana de Opus [1M]
+WINDOW = 1_000_000       # respaldo si Claude Code no manda context_window
 PREMIUM = 200_000        # umbral de pricing premium long-context
 TAIL_BYTES = 262_144     # leemos solo la cola del transcript
 
@@ -56,6 +58,13 @@ def ctx_tokens(transcript_path):
         + last.get("cache_read_input_tokens", 0)
         + last.get("cache_creation_input_tokens", 0)
     )
+
+
+def fmt_tokens(n):
+    """200000 → 200K, 1000000 → 1M."""
+    if n >= 1_000_000 and n % 1_000_000 == 0:
+        return f"{n // 1_000_000}M"
+    return f"{round(n / 1000)}K"
 
 
 def git_branch(cwd):
@@ -102,20 +111,27 @@ def main():
     model = ((data.get("model") or {}).get("display_name")
              or (data.get("model") or {}).get("id") or "?")
     cwd = (data.get("workspace") or {}).get("current_dir") or data.get("cwd") or "."
-    ctx = ctx_tokens(data.get("transcript_path"))
+    cw = data.get("context_window") or {}
+    window = cw.get("context_window_size") or WINDOW
+    if cw.get("current_usage"):
+        ctx = cw.get("total_input_tokens") or 0
+    else:  # sin mensajes todavía (p. ej. tras --resume) o Claude Code viejo
+        ctx = ctx_tokens(data.get("transcript_path"))
     k = round(ctx / 1000)
-    pct = round(ctx / WINDOW * 100)
+    pct = round(ctx / window * 100)
 
     if ctx >= PREMIUM:
         color, flag = RED, " ⚠️>200K"
-    elif ctx >= PREMIUM * 0.75:  # 150K, aviso temprano
+    elif pct >= 90:
+        color, flag = RED, ""
+    elif ctx >= PREMIUM * 0.75 or pct >= 75:  # 150K o 75%, aviso temprano
         color, flag = YELLOW, ""
     else:
         color, flag = GREEN, ""
 
     parts = [
         f"{CYAN}{model}{RESET}",
-        f"{color}⛁ {k}K ({pct}%){flag}{RESET}",
+        f"{color}⛁ {k}K/{fmt_tokens(window)} ({pct}%){flag}{RESET}",
     ]
 
     branch = git_branch(cwd)
