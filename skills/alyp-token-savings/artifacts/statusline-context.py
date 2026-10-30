@@ -25,6 +25,7 @@ GREEN = "\033[32m"
 YELLOW = "\033[33m"
 RED = "\033[31m"
 CYAN = "\033[36m"
+MAGENTA = "\033[35m"
 
 
 def ctx_tokens(transcript_path):
@@ -58,13 +59,36 @@ def ctx_tokens(transcript_path):
 
 
 def git_branch(cwd):
+    """`repo:rama*` — repo = raíz del árbol (en un worktree, su carpeta),
+    `*` = cambios sin commitear, `@sha` si el HEAD está desacoplado.
+    Una sola llamada a git; los untracked se ignoran para que sea rápida."""
     try:
         out = subprocess.run(
-            ["git", "-C", cwd or ".", "rev-parse", "--abbrev-ref", "HEAD"],
+            ["git", "-C", cwd or ".", "status", "--porcelain=v2", "--branch",
+             "--untracked-files=no"],
             capture_output=True, text=True, timeout=1,
         )
-        b = out.stdout.strip()
-        return b if out.returncode == 0 and b else None
+        if out.returncode != 0:
+            return None
+        head = oid = None
+        dirty = False
+        for line in out.stdout.splitlines():
+            if line.startswith("# branch.head "):
+                head = line.split(" ", 2)[2]
+            elif line.startswith("# branch.oid "):
+                oid = line.split(" ", 2)[2]
+            elif not line.startswith("#"):
+                dirty = True
+        if not head:
+            return None
+        if head == "(detached)":
+            head = f"@{(oid or '')[:7]}"
+        top = subprocess.run(
+            ["git", "-C", cwd or ".", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, timeout=1,
+        ).stdout.strip()
+        repo = os.path.basename(top) if top else ""
+        return f"{repo}:{head}{'*' if dirty else ''}" if repo else head
     except Exception:
         return None
 
@@ -96,7 +120,7 @@ def main():
 
     branch = git_branch(cwd)
     if branch:
-        parts.append(f"{DIM}⎇ {branch}{RESET}")
+        parts.append(f"{MAGENTA}⎇ {branch}{RESET}")
 
     cost = (data.get("cost") or {}).get("total_cost_usd")
     if isinstance(cost, (int, float)) and cost > 0:
