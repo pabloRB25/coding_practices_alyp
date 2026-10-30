@@ -14,7 +14,7 @@ de Claude Code en `~/.claude`. Idempotente: reinstalar re-sincroniza sin romper 
 
 | Artefacto | Destino | Qué hace |
 |---|---|---|
-| `artifacts/statusline-context.py` | `~/.claude/` | Barra de estado: `modelo · ⛁ NK (P%) · ⎇ rama · $costo`, color 🟢/🟡/🔴 a los 200K |
+| `artifacts/statusline-context.py` | `~/.claude/` | Barra de estado: `modelo · ⛁ NK (P%) · ⎇ repo:rama* · $costo` (`*` = cambios sin commitear), color 🟢/🟡/🔴 a los 200K |
 | `artifacts/hooks/context-guard.py` | `~/.claude/hooks/` | UserPromptSubmit **no-bloqueante**: banda 150K/300K, 1 aviso por tramo por sesión |
 | `artifacts/hooks/precompact-preserve.py` | `~/.claude/hooks/` | PreCompact **no-bloqueante**: ledger de compactaciones en disco + recordatorio de `/compact <qué preservar>` |
 | `artifacts/token-audit.sh` | `~/.claude/scripts/` | Mide el consumo real de contexto desde los transcripts |
