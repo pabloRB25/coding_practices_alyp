@@ -1,7 +1,13 @@
 {
   "name": "alyp-mods",
-  "owner": { "name": "Alyp Studio" },
+  "owner": {
+    "name": "Alyp Studio"
+  },
   "plugins": [
-    { "name": "agent-steps", "source": "./agent-steps", "description": "Panel lateral y banda con los pasos en curso, agrupados por subagente" }
+    {
+      "name": "agent-steps",
+      "source": "./agent-steps",
+      "description": "Qué se está ejecutando y cuánto falta: pasos por subagente, tareas, Workflow, planes de alyp-exec y jobs"
+    }
   ]
 }

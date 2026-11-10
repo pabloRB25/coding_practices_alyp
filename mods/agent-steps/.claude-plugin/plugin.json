@@ -1,1 +1,1 @@
-{ "name": "agent-steps", "version": "0.4.1", "description": "Panel lateral y banda con los pasos en curso, agrupados por subagente", "types": "./types/index.d.ts" }
+{ "name": "agent-steps", "version": "0.5.0", "description": "Qué se está ejecutando y cuánto falta: pasos por subagente, tareas, Workflow, planes de alyp-exec y jobs, en cualquier proyecto", "types": "./types/index.d.ts" }
