@@ -34,8 +34,13 @@ Estados: `pendiente` · `en-ola-N` · `gate-rojo` · `aceptada` · `bloqueada`
 |---|---|---|---|---|
 EOF
 
+# Registra la corrida en el índice global (~/.claude/run-index/) para que el
+# mod agent-steps la vea desde cualquier proyecto. Un fallo acá no frena la corrida.
+sh "$(dirname "$0")/progreso.sh" --registrar "$RUN" || echo "· no se pudo registrar en el índice global (sigue igual)" >&2
+
 echo "✓ ledger creado en $RUN"
 echo "  estado.md    ← tu única vista"
 echo "  contratos/   ← los contratos emitidos"
 echo "  reportes/    ← reportes completos (no releer en bloque)"
 echo "  gates/       ← salida de G1/G2/G3 por ola"
+echo "  progreso.json ← lo escribe progreso.sh en cada F5 (references/progreso.md)"

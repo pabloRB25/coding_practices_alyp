@@ -1,6 +1,6 @@
 ---
 name: alyp-exec
-version: 1.3.0
+version: 1.4.0
 provides: [execution-loop]
 requires: [orchestration]
 description: >
@@ -56,6 +56,7 @@ Idénticas en ambos modos (§9). Son el contrato del sistema.
 3. **Ledger** en `.claude/run/<slug>/` — lo crea `assets/ledger-init.sh`:
    ```
    estado.md          # UNA línea por tarea: <id> <estado> <riesgo> <ola>  ← tu única vista
+   progreso.json      # el avance contado, lo escribe assets/progreso.sh en F5 (no se deduce)
    contratos/<id>.md  # los contratos emitidos
    reportes/<id>.md   # los reportes completos (NO los releés en bloque — R1)
    gates/<ola>.txt    # salida de los gates mecánicos
@@ -173,8 +174,12 @@ precaución.
 
 ## 8. F5 · Cierre y reintentos
 
-**F5 · Integración**: actualizás `estado.md`, armás la ola siguiente, y sintetizás
-para el usuario **solo al cierre** (no ola por ola).
+**F5 · Integración**: actualizás `estado.md`, **escribís el avance con
+`assets/progreso.sh`** (total, aceptadas, en curso, bloqueadas, ola y tarea actual;
+reglas en `references/progreso.md`), armás la ola siguiente, y sintetizás para el
+usuario **solo al cierre** (no ola por ola). El número de `progreso.json` es el
+único que se reporta: el mod `agent-steps` lo muestra en cualquier proyecto y
+ventana, y deducirlo de `estado.md` da cifras distintas según quién lea.
 
 **Cierre del plan**: tras la última ola corrés **G4** (`references/gates.md` §G4),
 la única corrida de suites completas. Si falla, se clasifica como abajo, se arregla

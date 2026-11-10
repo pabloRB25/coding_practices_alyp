@@ -1,5 +1,27 @@
 # Changelog
 
+## v3.3.0 — 2026-11-10
+
+### El avance de una corrida se ve en cualquier proyecto y ventana
+
+Ver qué se ejecuta y cuánto falta dependía de leer `estado.md` a mano, y el
+número cambiaba según quién lo leyera: en fable-v1 un lector contó 29/41 y otro
+31/41 sobre el mismo archivo.
+
+- **`alyp-exec` → v1.4.0** (v1.3.0 archivada en `skills/alyp-exec/versions/`).
+- **`progreso.json`, nuevo** (`references/progreso.md`): el orquestador escribe
+  el avance en cada F5 con `assets/progreso.sh` (total, aceptadas, en curso,
+  bloqueadas, ola y tarea actual). El script valida los conteos; nadie deduce el
+  número de `estado.md`.
+- **Índice global** `~/.claude/run-index/`: `ledger-init.sh` y `progreso.sh`
+  dejan un puntero por corrida (un archivo cada una, sin pisarse entre sesiones).
+- **Mod `agent-steps` versionado en `mods/`** (antes vivía solo en
+  `~/.claude/mods`) y llevado a **v0.5.0**: secciones Ahora · Tareas · Workflow ·
+  Plan · Jobs, % solo donde hay denominador, filtro "este proyecto / todos" para
+  no mostrar otros clientes al compartir pantalla, y correcciones (pasos
+  interrumpidos que quedaban "en curso", segundo plano marcado como hecho al
+  lanzarse, agentes de Workflow sin nombre).
+
 ## v3.2.0 — 2026-10-21
 
 ### Pruebas acotadas durante la ejecución; la suite completa, una vez al cierre
