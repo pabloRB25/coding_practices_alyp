@@ -81,6 +81,8 @@ declare module 'claude-code' {
       plans: Shaped<Plan[]>
       jobs: Shaped<Job[]>
       alcance: Alcance
+      /** Ledgers que esta sesión trabaja (rutas absolutas): los únicos planes en modo proyecto. */
+      vinculados: Shaped<string[]>
     }
   }
 }

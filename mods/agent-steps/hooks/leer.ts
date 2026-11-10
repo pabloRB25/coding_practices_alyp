@@ -9,6 +9,35 @@ export const DIA = 24 * HORA
 export const dentro = (ruta: string, raiz: string): boolean =>
   ruta === raiz || ruta.startsWith(raiz.endsWith('/') ? raiz : raiz + '/')
 
+const LEDGER_ABS = /(\/[^\s'"`<>|;&]*?\/\.claude\/run\/[A-Za-z0-9._-]+)/g
+const LEDGER_REL = /(?:^|[\s'"`=(])(\.\/)?(\.claude\/run\/[A-Za-z0-9._-]+)/g
+
+/**
+ * Ledgers de alyp-exec que nombra un texto (un comando, una ruta): absolutos tal
+ * cual, relativos resueltos contra `cwd`. Así el mod sabe qué plan trabaja esta
+ * sesión sin que nadie se lo diga.
+ */
+export const ledgersEn = (texto: string, cwd: string): string[] => {
+  const out = new Set<string>()
+  for (const m of texto.matchAll(LEDGER_ABS)) if (m[1]) out.add(m[1])
+  for (const m of texto.matchAll(LEDGER_REL)) if (m[2] && cwd) out.add(`${cwd.replace(/\/$/, '')}/${m[2]}`)
+  return [...out]
+}
+
+/**
+ * Si un job es "de este proyecto". Dentro de un repo git: el repo. Fuera de un
+ * repo: lo que cuelga de la carpeta, salvo en carpetas contenedoras genéricas
+ * (el home y su primer nivel, como ~/Dev), donde solo cuenta la misma carpeta:
+ * desde ahí "debajo" son todos los clientes.
+ */
+export const jobDelProyecto = (jobCwd: string, raiz: string, esRepo: boolean, home: string): boolean => {
+  if (!raiz || !jobCwd) return false
+  if (esRepo) return dentro(jobCwd, raiz)
+  const h = home.replace(/\/$/, '')
+  const generica = h !== '' && (raiz === h || (dentro(raiz, h) && raiz.slice(h.length + 1).split('/').length < 2))
+  return generica ? jobCwd === raiz : dentro(jobCwd, raiz)
+}
+
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0)
 const txt = (v: unknown): string => (typeof v === 'string' ? v : '')
 const fecha = (v: unknown): number => {

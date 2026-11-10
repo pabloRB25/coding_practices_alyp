@@ -4,11 +4,12 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Alcance, Job, Plan, Step, Task, WfAgent, Workflow } from '../types'
 import {
   barra,
-  dentro,
   hace,
   HORA,
+  jobDelProyecto,
   jobDeEstado,
   jobsVisibles,
+  ledgersEn,
   metaDeWorkflow,
   pct,
   planDeEstado,
@@ -26,6 +27,7 @@ const workflows = atom({ plugin: 'agent-steps', key: 'workflows' } as const, [],
 const plans = atom({ plugin: 'agent-steps', key: 'plans' } as const, [], { shape: 'plans-1' })
 const jobs = atom({ plugin: 'agent-steps', key: 'jobs' } as const, [], { shape: 'jobs-1' })
 const alcance = atom({ plugin: 'agent-steps', key: 'alcance' } as const, 'proyecto' as Alcance)
+const vinculados = atom({ plugin: 'agent-steps', key: 'vinculados' } as const, [], { shape: 'vinculados-1' })
 
 // El panel ocupa 1/FRACCION del ancho de la terminal (mínimo 24 columnas).
 const FRACCION = 4
@@ -57,12 +59,45 @@ const textoEstado = async ($: EngineInterface): Promise<string | undefined> => {
   return partes.length > 0 ? partes.join(' · ') : undefined
 }
 
+/** Los punteros del índice global (~/.claude/run-index/*.json). Nunca lanza. */
+const punteros = async ($: EngineInterface, config: string): Promise<{ ledger: string; slug: string }[]> => {
+  const out: { ledger: string; slug: string }[] = []
+  if (!config) return out
+  try {
+    for (const f of await $.fs.list(`${config}/run-index`)) {
+      if (f.kind !== 'file' || !f.name.endsWith('.json')) continue
+      try {
+        const p = JSON.parse(await $.fs.read(`${config}/run-index/${f.name}`)) as { ledger?: unknown; slug?: unknown }
+        if (typeof p.ledger === 'string') {
+          out.push({ ledger: p.ledger, slug: typeof p.slug === 'string' ? p.slug : (p.ledger.split('/').pop() ?? '') })
+        }
+      } catch {
+        // puntero ilegible
+      }
+    }
+  } catch {
+    // sin índice
+  }
+  return out
+}
+
+/** Marca ledgers como trabajados por esta sesión. Devuelve si alguno era nuevo. */
+const vincular = async ($: EngineInterface, rutas: string[]): Promise<boolean> => {
+  const antes = await read($, vinculados)
+  const nuevas = rutas.filter(r => !antes.includes(r))
+  if (nuevas.length === 0) return false
+  await update($, vinculados, list => [...list, ...nuevas].slice(-6))
+  return true
+}
+
 /** Relee planes (progreso.json / estado.md) y jobs del disco. Nunca lanza. */
 const refrescar = async ($: EngineInterface): Promise<void> => {
   const ahora = await $.clock.now()
   let raiz = ''
+  let esRepo = false
   try {
     raiz = (await $.session.repo())?.root ?? ''
+    esRepo = raiz !== ''
   } catch {
     raiz = ''
   }
@@ -74,43 +109,33 @@ const refrescar = async ($: EngineInterface): Promise<void> => {
     }
   }
   let config = ''
+  let home = ''
   try {
     const propio = await $.env.get('CLAUDE_CONFIG_DIR')
-    const home = await $.env.get('HOME')
+    home = (await $.env.get('HOME')) ?? ''
     config = propio || (home ? `${home}/.claude` : '')
   } catch {
     config = ''
   }
   const scope = await read($, alcance)
-  const delProyecto = (ruta: string): boolean => scope === 'todos' || (raiz !== '' && dentro(ruta, raiz))
 
-  // Planes: los del repo de la sesión más los del índice global.
-  const ledgers = new Set<string>()
-  if (raiz) {
-    try {
-      for (const d of await $.fs.list(`${raiz}/.claude/run`)) if (d.kind === 'dir') ledgers.add(`${raiz}/.claude/run/${d.name}`)
-    } catch {
-      // sin ledger propio
-    }
-  }
-  if (config) {
-    try {
-      for (const f of await $.fs.list(`${config}/run-index`)) {
-        if (f.kind !== 'file' || !f.name.endsWith('.json')) continue
-        try {
-          const p = JSON.parse(await $.fs.read(`${config}/run-index/${f.name}`)) as { ledger?: unknown }
-          if (typeof p.ledger === 'string') ledgers.add(p.ledger)
-        } catch {
-          // puntero ilegible
-        }
+  // Planes. En modo proyecto, solo los que esta sesión trabaja (vinculados al
+  // tocar su ledger o con /pasos plan): una carpeta contenedora como ~/Dev/cayuga
+  // tiene planes de otras sesiones que no son el avance de esta ventana.
+  // En modo todos, además los del repo de la sesión y los del índice global.
+  const ledgers = new Set<string>(await read($, vinculados))
+  if (scope === 'todos') {
+    if (raiz) {
+      try {
+        for (const d of await $.fs.list(`${raiz}/.claude/run`)) if (d.kind === 'dir') ledgers.add(`${raiz}/.claude/run/${d.name}`)
+      } catch {
+        // sin ledger propio
       }
-    } catch {
-      // sin índice
     }
+    for (const p of await punteros($, config)) ledgers.add(p.ledger)
   }
   const vistos: Plan[] = []
   for (const ledger of ledgers) {
-    if (!delProyecto(ledger)) continue
     let plan: Plan | null = null
     try {
       plan = planDeProgreso(ledger, await $.fs.read(`${ledger}/progreso.json`))
@@ -141,7 +166,7 @@ const refrescar = async ($: EngineInterface): Promise<void> => {
         if (d.kind !== 'dir') continue
         try {
           const j = jobDeEstado(d.name, await $.fs.read(`${config}/jobs/${d.name}/state.json`), sesion)
-          if (j && delProyecto(j.cwd)) lista.push(j)
+          if (j && (scope === 'todos' || j.isMine || jobDelProyecto(j.cwd, raiz, esRepo, home))) lista.push(j)
         } catch {
           // job sin state.json
         }
@@ -176,7 +201,8 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'pasos',
-      description: 'Panel de pasos y avance. "/pasos todos" o "/pasos proyecto" elige qué planes y jobs se ven',
+      description:
+        'Panel de pasos y avance. "/pasos plan <nombre>" vincula un plan a esta sesión; "/pasos todos" o "/pasos proyecto" elige qué planes y jobs se ven',
     })
     try {
       const guardado = await $.store.get('alcance')
@@ -192,7 +218,38 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'pasos' }, async ($, e) => {
-    const arg = e.args.trim().toLowerCase()
+    const plano = e.args.trim()
+    if (/^plan(\s|$)/i.test(plano)) {
+      // /pasos plan <nombre | ruta del ledger>: vincula a mano un plan a esta sesión.
+      const quien = plano.slice(4).trim()
+      if (!quien) return { text: 'Uso: /pasos plan <nombre del plan o ruta de su ledger>' }
+      let ruta = quien.startsWith('/') ? quien.replace(/\/$/, '') : ''
+      if (!ruta) {
+        let config = ''
+        try {
+          const propio = await $.env.get('CLAUDE_CONFIG_DIR')
+          const home = await $.env.get('HOME')
+          config = propio || (home ? `${home}/.claude` : '')
+        } catch {
+          config = ''
+        }
+        ruta = (await punteros($, config)).find(p => p.slug === quien)?.ledger ?? ''
+        if (!ruta) {
+          try {
+            const raiz = (await $.session.repo())?.root ?? (await $.session.root())
+            await $.fs.stat(`${raiz}/.claude/run/${quien}`)
+            ruta = `${raiz}/.claude/run/${quien}`
+          } catch {
+            ruta = ''
+          }
+        }
+      }
+      if (!ruta) return { text: `No encontré el plan "${quien}" en el índice ni en este repo.` }
+      await vincular($, [ruta])
+      await refrescar($)
+      return { text: `Plan vinculado a esta sesión: ${ruta}` }
+    }
+    const arg = plano.toLowerCase()
     if (arg === 'todos' || arg === 'proyecto') {
       await update($, alcance, () => arg)
       try {
@@ -276,6 +333,20 @@ export const register: Register = on => {
 
     const out = ran as { deny?: string; isError?: boolean; result?: Record<string, unknown> }
     const input = e as unknown as Record<string, unknown>
+
+    // ¿Esta llamada toca el ledger de un plan? Entonces es el plan de esta sesión.
+    const nombrado = [input.command, input.file_path, input.path, input.notebook_path]
+      .filter((v): v is string => typeof v === 'string')
+      .join('\n')
+    if (nombrado.includes('.claude/run/')) {
+      let cwd = ''
+      try {
+        cwd = await $.session.cwd()
+      } catch {
+        cwd = ''
+      }
+      if (await vincular($, ledgersEn(nombrado, cwd))) await refrescar($)
+    }
     if (e.tool === 'Bash' && typeof out.result?.backgroundTaskId === 'string') {
       await cerrar({ isDone: false, isBackground: true })
     } else {

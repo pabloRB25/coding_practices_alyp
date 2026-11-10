@@ -23,7 +23,10 @@ const PANE = {
 type Archivos = Record<string, string>
 
 /** Un disco falso: `archivos` por ruta absoluta; las carpetas salen de las rutas. */
-const setup = (on: any, archivos: Archivos = {}, extra?: (on: any) => void) => {
+type Opts = { raiz?: string; esRepo?: boolean }
+
+const setup = (on: any, archivos: Archivos = {}, extra?: (on: any) => void, opts: Opts = {}) => {
+  const raiz = opts.raiz ?? REPO
   mock.clock(on, { now: AHORA })
   mock.store(on)
   mock.env(on, { HOME: '/Users/x' })
@@ -33,10 +36,10 @@ const setup = (on: any, archivos: Archivos = {}, extra?: (on: any) => void) => {
   on('command.register', () => ({ value: { command: 'pasos' } }))
   on('ui.open', () => ({ value: { isPlaced: true } }))
   on('agent.list', () => ({ value: [] }))
-  on('session.repo', () => ({ value: { root: REPO, remote: null, internal: false } }))
-  on('session.root', () => ({ value: REPO }))
+  on('session.repo', () => ({ value: opts.esRepo === false ? null : { root: raiz, remote: null, internal: false } }))
+  on('session.root', () => ({ value: raiz }))
   on('session.id', () => ({ value: 'sesion-1' }))
-  on('session.cwd', () => ({ value: REPO }))
+  on('session.cwd', () => ({ value: raiz }))
   on('fs.read', (_: any, e: any) => {
     const t = archivos[e.path]
     if (t === undefined) throw new Error(`ENOENT ${e.path}`)
@@ -56,8 +59,12 @@ const setup = (on: any, archivos: Archivos = {}, extra?: (on: any) => void) => {
     }
     return { value: [...nombres].map(([name, kind]) => ({ name, kind, size: 0, mtimeMs: 0, isLink: false })) }
   })
-  extra?.(on)
+  if (extra) extra(on)
+  else on('tool.call', () => ({ result: {} }))
 }
+
+/** Lo que hace una sesión real al retomar un plan: leer su ledger. */
+const leerLedger = ($: any, ledger: string) => $.tool.call({ tool: 'Bash', command: `cat ${ledger}/estado.md` })
 
 const start = ($: any) => $.session.start({ cwd: REPO, surface: 'terminal', isInteractive: true })
 
@@ -80,6 +87,7 @@ const progreso = (o: Record<string, unknown>) =>
 test('un plan con progreso.json muestra su % y su ola', async ($, on) => {
   setup(on, { [`${REPO}/.claude/run/fable-v1/progreso.json`]: progreso({}) })
   await start($)
+  await leerLedger($, `${REPO}/.claude/run/fable-v1`)
   const ui = await $.ui.mount(PANE)
   expect((await ui.find({ type: 'Text', text: /71%/ }))?.text).toMatch(/71%/)
   expect((await ui.find({ type: 'Text', text: /29\/41/ }))?.text).toMatch(/29\/41/)
@@ -93,10 +101,11 @@ test('el plan se nombra "plan <título>", o "plan <carpeta>" sin título', async
     [`${REPO}/.claude/run/otro-v2/progreso.json`]: progreso({ plan: 'otro-v2', titulo: '' }),
   })
   await start($)
+  await $.tool.call({ tool: 'Bash', command: 'cat .claude/run/fable-v1/progreso.json .claude/run/otro-v2/estado.md' })
   const ui = await $.ui.mount(PANE)
   expect((await ui.find({ type: 'Text', text: /plan Integración Bitrix↔Skill v8/ }))?.text).toMatch(/^▣ plan Integración/)
   expect((await ui.find({ type: 'Text', text: /plan otro-v2/ }))?.text).toMatch(/^▣ plan otro-v2/)
-  expect(await ui.find({ type: 'Text', text: /fable-v1/ })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /plan fable-v1/ })).toBeUndefined()
   await ui.unmount()
 })
 
@@ -112,6 +121,7 @@ test('sin progreso.json el plan sale de estado.md y se marca estimado', async ($
     ].join('\n'),
   })
   await start($)
+  await leerLedger($, `${REPO}/.claude/run/viejo`)
   const ui = await $.ui.mount(PANE)
   expect((await ui.find({ type: 'Text', text: /estimado/ }))?.text).toMatch(/estimado/)
   expect((await ui.find({ type: 'Text', text: /1\/4/ }))?.text).toMatch(/1\/4/)
@@ -201,5 +211,51 @@ test('un Workflow muestra nombre, fases y agentes lanzados', async ($, on) => {
   expect((await ui.find({ type: 'Text', text: /revisar/ }))?.text).toMatch(/revisar/)
   expect((await ui.find({ type: 'Text', text: /agentes/ }))?.text).toMatch(/0\/1 agentes/)
   expect((await ui.find({ type: 'Text', text: /fases/ }))?.text).toMatch(/Revisar · Verificar/)
+  await ui.unmount()
+})
+
+test('un plan del repo que la sesión no tocó no aparece; al leer su ledger, sí', async ($, on) => {
+  setup(on, { [`${REPO}/.claude/run/fable-v1/progreso.json`]: progreso({}) })
+  await start($)
+  let ui = await $.ui.mount(PANE)
+  expect(await ui.find({ type: 'Text', text: /71%/ })).toBeUndefined()
+  await ui.unmount()
+
+  await $.tool.call({ tool: 'Bash', command: 'sh assets/progreso.sh .claude/run/fable-v1 --total 41 --aceptadas 29' })
+  ui = await $.ui.mount(PANE)
+  expect((await ui.find({ type: 'Text', text: /71%/ }))?.text).toMatch(/71%/)
+  await ui.unmount()
+})
+
+test('/pasos plan <nombre> vincula un plan del índice a esta sesión', async ($, on) => {
+  const otro = '/Users/x/otro'
+  setup(on, {
+    [`${CFG}/run-index/9.json`]: JSON.stringify({ version: 1, ledger: `${otro}/.claude/run/migracion`, slug: 'migracion' }),
+    [`${otro}/.claude/run/migracion/progreso.json`]: progreso({ plan: 'migracion', repo: otro, aceptadas: 4, total: 8 }),
+  })
+  await start($)
+  const r = await $.command.run({ command: 'pasos', args: 'plan migracion' } as any)
+  expect(String((r as { text?: string }).text)).toMatch(/vinculado/)
+  const ui = await $.ui.mount(PANE)
+  expect((await ui.find({ type: 'Text', text: /plan migracion/ }))?.text).toMatch(/plan migracion/)
+  expect((await ui.find({ type: 'Text', text: /50%/ }))?.text).toMatch(/50%/)
+  await ui.unmount()
+})
+
+test('desde una carpeta contenedora (~/Dev) no aparecen jobs de otros clientes', async ($, on) => {
+  const dev = '/Users/x/Dev'
+  setup(
+    on,
+    {
+      [`${CFG}/jobs/a/state.json`]: JSON.stringify({ state: 'working', name: 'job cliente A', cwd: `${dev}/cliente-a`, updatedAt: '2026-11-10T18:59:00Z' }),
+      [`${CFG}/jobs/b/state.json`]: JSON.stringify({ state: 'working', name: 'job en Dev', cwd: dev, updatedAt: '2026-11-10T18:59:00Z' }),
+    },
+    undefined,
+    { raiz: dev, esRepo: false },
+  )
+  await start($)
+  const ui = await $.ui.mount(PANE)
+  expect(await ui.find({ type: 'Text', text: /cliente A/ })).toBeUndefined()
+  expect((await ui.find({ type: 'Text', text: /job en Dev/ }))?.text).toMatch(/job en Dev/)
   await ui.unmount()
 })
