@@ -214,16 +214,56 @@ test('un Workflow muestra nombre, fases y agentes lanzados', async ($, on) => {
   await ui.unmount()
 })
 
-test('un plan del repo que la sesión no tocó no aparece; al leer su ledger, sí', async ($, on) => {
-  setup(on, { [`${REPO}/.claude/run/fable-v1/progreso.json`]: progreso({}) })
+test('desde una carpeta que no es repo, un plan de abajo aparece solo al tocar su ledger', async ($, on) => {
+  const cliente = '/Users/x/Dev/cliente'
+  const ledger = `${cliente}/repo-a/.claude/run/p1`
+  setup(
+    on,
+    {
+      // Como en la máquina real: el plan está registrado en el índice global.
+      [`${CFG}/run-index/5.json`]: JSON.stringify({ version: 1, ledger, slug: 'p1' }),
+      [`${ledger}/progreso.json`]: progreso({ plan: 'p1', repo: `${cliente}/repo-a` }),
+    },
+    undefined,
+    {
+      raiz: cliente,
+      esRepo: false,
+    },
+  )
   await start($)
   let ui = await $.ui.mount(PANE)
   expect(await ui.find({ type: 'Text', text: /71%/ })).toBeUndefined()
   await ui.unmount()
 
-  await $.tool.call({ tool: 'Bash', command: 'sh assets/progreso.sh .claude/run/fable-v1 --total 41 --aceptadas 29' })
+  await $.tool.call({ tool: 'Bash', command: `sh assets/progreso.sh ${ledger} --total 41 --aceptadas 29` })
   ui = await $.ui.mount(PANE)
   expect((await ui.find({ type: 'Text', text: /71%/ }))?.text).toMatch(/71%/)
+  await ui.unmount()
+})
+
+test('dentro de un repo, su plan aparece sin tener que vincularlo', async ($, on) => {
+  setup(on, { [`${REPO}/.claude/run/fable-v1/progreso.json`]: progreso({}) })
+  await start($)
+  const ui = await $.ui.mount(PANE)
+  expect((await ui.find({ type: 'Text', text: /71%/ }))?.text).toMatch(/71%/)
+  await ui.unmount()
+})
+
+test('desde un worktree aparece el plan del checkout principal', async ($, on) => {
+  const wt = '/Users/x/.wt/t70'
+  setup(
+    on,
+    {
+      [`${wt}/.git`]: `gitdir: ${REPO}/.git/worktrees/t70\n`,
+      [`${REPO}/.claude/run/fable-v1/progreso.json`]: progreso({}),
+    },
+    undefined,
+    { raiz: wt },
+  )
+  await start($)
+  const ui = await $.ui.mount(PANE)
+  expect((await ui.find({ type: 'Text', text: /71%/ }))?.text).toMatch(/71%/)
+  expect((await ui.find({ type: 'Text', text: /plan fable-v1/ }))?.text).toMatch(/plan fable-v1/)
   await ui.unmount()
 })
 

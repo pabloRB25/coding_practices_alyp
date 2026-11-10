@@ -25,6 +25,15 @@ export const ledgersEn = (texto: string, cwd: string): string[] => {
 }
 
 /**
+ * El checkout principal de un worktree, leyendo su archivo `.git`
+ * ("gitdir: /repo/.git/worktrees/<nombre>"). null si no es un worktree.
+ */
+export const repoPrincipal = (archivoGit: string): string | null => {
+  const m = /^gitdir:\s*(.+?)\/\.git\/worktrees\/[^/\s]+\s*$/m.exec(archivoGit)
+  return m?.[1] ?? null
+}
+
+/**
  * Si un job es "de este proyecto". Dentro de un repo git: el repo. Fuera de un
  * repo: lo que cuelga de la carpeta, salvo en carpetas contenedoras genéricas
  * (el home y su primer nivel, como ~/Dev), donde solo cuenta la misma carpeta:

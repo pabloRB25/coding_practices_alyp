@@ -19,13 +19,16 @@ turno no tienen denominador: ahí se muestra el tiempo transcurrido.
 
 ## Qué plan muestra cada ventana
 
-Cada sesión muestra **el plan que ella misma trabaja**, no los que hay en su
-carpeta: una ventana abierta en `~/Dev/cayuga` no es "el plan fable-v1" solo
-porque ese ledger cuelga de ahí. Un plan queda vinculado a la sesión cuando:
+Cada sesión muestra el plan de **su** proyecto, no los de toda la carpeta donde
+se abrió:
 
-- la sesión o uno de sus subagentes toca su ledger (`cat …/.claude/run/<plan>/estado.md`,
-  `progreso.sh .claude/run/<plan>`, editar un contrato…), o
-- se vincula a mano: `/pasos plan <nombre>` (del índice o del repo) o `/pasos plan <ruta>`.
+- **Dentro de un repo git:** los planes de ese repo (`<repo>/.claude/run/*`) y,
+  si la sesión está en un worktree (`.wt/…`), los del checkout principal.
+- **En una carpeta que no es repo** (`~/Dev/cayuga`, `~/Dev`, `~`): ninguno por
+  carpeta, porque ahí "debajo" hay planes de otras sesiones y clientes.
+- **Siempre**, los vinculados a la sesión: se vinculan solos cuando la sesión o
+  un subagente toca su ledger (`cat …/.claude/run/<plan>/estado.md`,
+  `progreso.sh .claude/run/<plan>`…), o a mano con `/pasos plan <nombre|ruta>`.
 
 El % de **tareas** también es de la sesión: sale de sus propias TaskCreate.
 
@@ -42,8 +45,8 @@ entre sesiones); `/pasos proyecto` vuelve al filtro; `/pasos` abre el panel.
 
 ## Cómo encuentra los planes
 
-1. Los vinculados a la sesión (siempre).
-2. Con `/pasos todos`, además `<repo>/.claude/run/*/` y el índice global
+1. Los vinculados a la sesión y los del repo (y checkout principal) de la sesión.
+2. Con `/pasos todos`, además el índice global
    `~/.claude/run-index/*.json` (o `$CLAUDE_CONFIG_DIR/run-index`), que escriben
    `ledger-init.sh` y `progreso.sh` de `alyp-exec` (`skills/alyp-exec/references/progreso.md`).
 

@@ -10,6 +10,7 @@ import {
   jobDeEstado,
   jobsVisibles,
   ledgersEn,
+  repoPrincipal,
   metaDeWorkflow,
   pct,
   planDeEstado,
@@ -119,21 +120,33 @@ const refrescar = async ($: EngineInterface): Promise<void> => {
   }
   const scope = await read($, alcance)
 
-  // Planes. En modo proyecto, solo los que esta sesión trabaja (vinculados al
-  // tocar su ledger o con /pasos plan): una carpeta contenedora como ~/Dev/cayuga
-  // tiene planes de otras sesiones que no son el avance de esta ventana.
-  // En modo todos, además los del repo de la sesión y los del índice global.
+  // Planes, en modo proyecto:
+  // - los vinculados a la sesión (tocó su ledger o /pasos plan);
+  // - si la sesión está en un repo git, los ledgers de ese repo, y del checkout
+  //   principal cuando es un worktree (.wt/…): son el plan de este proyecto.
+  // Una carpeta que no es repo (~/Dev/cayuga, ~/Dev, ~) no aporta los suyos:
+  // ahí "debajo" hay planes de otras sesiones. En modo todos, además el índice.
   const ledgers = new Set<string>(await read($, vinculados))
-  if (scope === 'todos') {
-    if (raiz) {
+  const repos: string[] = []
+  if (esRepo || scope === 'todos') {
+    if (raiz) repos.push(raiz)
+    if (esRepo) {
       try {
-        for (const d of await $.fs.list(`${raiz}/.claude/run`)) if (d.kind === 'dir') ledgers.add(`${raiz}/.claude/run/${d.name}`)
+        const principal = repoPrincipal(await $.fs.read(`${raiz}/.git`))
+        if (principal && principal !== raiz) repos.push(principal)
       } catch {
-        // sin ledger propio
+        // .git es carpeta: no es un worktree
       }
     }
-    for (const p of await punteros($, config)) ledgers.add(p.ledger)
   }
+  for (const repo of repos) {
+    try {
+      for (const d of await $.fs.list(`${repo}/.claude/run`)) if (d.kind === 'dir') ledgers.add(`${repo}/.claude/run/${d.name}`)
+    } catch {
+      // sin ledgers en ese repo
+    }
+  }
+  if (scope === 'todos') for (const p of await punteros($, config)) ledgers.add(p.ledger)
   const vistos: Plan[] = []
   for (const ledger of ledgers) {
     let plan: Plan | null = null
