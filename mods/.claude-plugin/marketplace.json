@@ -1,0 +1,13 @@
+{
+  "name": "alyp-mods",
+  "owner": {
+    "name": "Alyp Studio"
+  },
+  "plugins": [
+    {
+      "name": "agent-steps",
+      "source": "./agent-steps",
+      "description": "Qué se está ejecutando y cuánto falta: pasos por subagente, tareas, Workflow, planes de alyp-exec y jobs"
+    }
+  ]
+}
