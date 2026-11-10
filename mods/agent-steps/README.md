@@ -8,7 +8,7 @@ y una entrada en la statusline.
 
 | Sección | Qué | % | Fuente |
 |---|---|---|---|
-| **Plan** `▣` | Corridas de `alyp-exec`: aceptadas/total, ola, en curso, bloqueadas, tarea actual | Sí | `progreso.json` del ledger (o `estado.md`, marcado **estimado**) |
+| **Plan** `▣` | Corridas de `alyp-exec`, como «plan <título>» (o «plan <carpeta>» sin título): aceptadas/total, ola, en curso, bloqueadas, tarea actual | Sí | `progreso.json` del ledger (o `estado.md`, marcado **estimado**) |
 | **Tareas** `☑` | Tareas de la sesión y la que está en curso | Sí | TaskCreate / TaskUpdate / TaskList / TodoWrite |
 | **Workflow** `⚙` | Nombre, fases y agentes terminados/lanzados | Agentes | `tool.call` Workflow + `agent.spawn` (`workflow.runId`) + `turn.complete` |
 | **Ahora** | Herramientas del turno por subagente: `▶` en curso, `✓` hecha, `✗` falló o se cortó, `⧗` en segundo plano | No: tiempo | `tool.call`, `$.agent.list()` |

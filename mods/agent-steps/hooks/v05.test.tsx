@@ -87,6 +87,19 @@ test('un plan con progreso.json muestra su % y su ola', async ($, on) => {
   await ui.unmount()
 })
 
+test('el plan se nombra "plan <título>", o "plan <carpeta>" sin título', async ($, on) => {
+  setup(on, {
+    [`${REPO}/.claude/run/fable-v1/progreso.json`]: progreso({ titulo: 'Integración Bitrix↔Skill v8' }),
+    [`${REPO}/.claude/run/otro-v2/progreso.json`]: progreso({ plan: 'otro-v2', titulo: '' }),
+  })
+  await start($)
+  const ui = await $.ui.mount(PANE)
+  expect((await ui.find({ type: 'Text', text: /plan Integración Bitrix↔Skill v8/ }))?.text).toMatch(/^▣ plan Integración/)
+  expect((await ui.find({ type: 'Text', text: /plan otro-v2/ }))?.text).toMatch(/^▣ plan otro-v2/)
+  expect(await ui.find({ type: 'Text', text: /fable-v1/ })).toBeUndefined()
+  await ui.unmount()
+})
+
 test('sin progreso.json el plan sale de estado.md y se marca estimado', async ($, on) => {
   setup(on, {
     [`${REPO}/.claude/run/viejo/estado.md`]: [
@@ -119,7 +132,7 @@ test('los planes y jobs de otro proyecto se ocultan hasta "/pasos todos"', async
   expect((await ui.find({ type: 'Text', text: /job mío/ }))?.text).toMatch(/job mío/)
   await ui.unmount()
 
-  const r = await $.command.run({ command: 'pasos', args: 'todos' })
+  const r = await $.command.run({ command: 'pasos', args: 'todos' } as any)
   expect(String((r as { text?: string }).text)).toMatch(/todos los proyectos/)
   ui = await $.ui.mount(PANE)
   expect((await ui.find({ type: 'Text', text: /ajeno/ }))?.text).toMatch(/ajeno/)

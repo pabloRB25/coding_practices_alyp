@@ -38,11 +38,18 @@ const labelOf = (e: Record<string, unknown>): string => {
 
 const corta = (s: string, n: number): string => (s.length > n ? s.slice(0, n - 1) + '…' : s)
 
+/**
+ * "plan <título>", o "plan <carpeta>" si progreso.json no trae título. El
+ * prefijo deja claro que es el nombre del plan: una carpeta como "fable-v1"
+ * se leía como el modelo que ejecutaba.
+ */
+const nombrePlan = (p: Plan, n = 32): string => `plan ${corta(p.titulo || p.slug, n)}`
+
 /** Una línea para la statusline: plan, tareas y pasos vivos. */
 const textoEstado = async ($: EngineInterface): Promise<string | undefined> => {
   const partes: string[] = []
   const p = (await read($, plans))[0]
-  if (p) partes.push(`▣ ${p.slug} ${pct(p.aceptadas, p.total)}%${p.isEstimado ? '~' : ''}`)
+  if (p) partes.push(`▣ ${nombrePlan(p, 24)} ${pct(p.aceptadas, p.total)}%${p.isEstimado ? '~' : ''}`)
   const t = await read($, tasks)
   if (t.length > 0) partes.push(`☑ ${t.filter(x => x.status === 'completed').length}/${t.length}`)
   const vivos = (await read($, steps)).filter(s => !s.isDone && !s.isBackground).length
@@ -447,7 +454,7 @@ export const register: Register = on => {
             <Box flexDirection="column" key={p.ledger}>
               <Box>
                 <Text bold color="suggestion" wrap="truncate-end">
-                  ▣ {p.slug}{' '}
+                  ▣ {nombrePlan(p)}{' '}
                 </Text>
                 <Text color="subtle">
                   {p.isEstimado ? 'estimado · ' : ''}
@@ -601,7 +608,7 @@ export const register: Register = on => {
       <Box>
         {corrida && (
           <Text color="suggestion">
-            ▣ {corrida.slug} {pct(corrida.aceptadas, corrida.total)}%{corrida.isEstimado ? '~' : ''}
+            ▣ {nombrePlan(corrida, 24)} {pct(corrida.aceptadas, corrida.total)}%{corrida.isEstimado ? '~' : ''}
             {cur ? ' · ' : ''}
           </Text>
         )}
