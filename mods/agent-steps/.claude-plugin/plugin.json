@@ -1,0 +1,1 @@
+{ "name": "agent-steps", "version": "0.5.3", "description": "Qué se está ejecutando y cuánto falta: pasos por subagente, tareas, Workflow, planes de alyp-exec y jobs, en cualquier proyecto", "types": "./types/index.d.ts" }

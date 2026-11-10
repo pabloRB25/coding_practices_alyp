@@ -1,5 +1,80 @@
 # Changelog
 
+## v3.3.0 — 2026-11-10
+
+### El avance de una corrida se ve en cualquier proyecto y ventana
+
+Ver qué se ejecuta y cuánto falta dependía de leer `estado.md` a mano, y el
+número cambiaba según quién lo leyera: en fable-v1 un lector contó 29/41 y otro
+31/41 sobre el mismo archivo.
+
+- **`alyp-exec` → v1.4.0** (v1.3.0 archivada en `skills/alyp-exec/versions/`).
+- **`progreso.json`, nuevo** (`references/progreso.md`): el orquestador escribe
+  el avance en cada F5 con `assets/progreso.sh` (total, aceptadas, en curso,
+  bloqueadas, ola y tarea actual). El script valida los conteos; nadie deduce el
+  número de `estado.md`.
+- **Índice global** `~/.claude/run-index/`: `ledger-init.sh` y `progreso.sh`
+  dejan un puntero por corrida (un archivo cada una, sin pisarse entre sesiones).
+- **Mod `agent-steps` versionado en `mods/`** (antes vivía solo en
+  `~/.claude/mods`) y llevado a **v0.5.0**: secciones Ahora · Tareas · Workflow ·
+  Plan · Jobs, % solo donde hay denominador, filtro "este proyecto / todos" para
+  no mostrar otros clientes al compartir pantalla, y correcciones (pasos
+  interrumpidos que quedaban "en curso", segundo plano marcado como hecho al
+  lanzarse, agentes de Workflow sin nombre).
+
+## v3.2.0 — 2026-10-21
+
+### Pruebas acotadas durante la ejecución; la suite completa, una vez al cierre
+
+G3 decía "typecheck + suite completa antes de cada ola". En un plan de 25 olas eso
+son 25 corridas de la suite entera, y la suite crece ola a ola: horas de prueba que
+no cazan nada que G1 (cada contrato) más el lote de la ola no hayan cazado ya. En
+FaciliGroup L9-BAJA una sola tarea tardó 10,4 h por correr `verify` en cada vuelta.
+
+- **`alyp-exec` → v1.3.0** (v1.2.0 archivada en `skills/alyp-exec/versions/`).
+- **G3 acotado**: typecheck/lint de lo afectado + los `verificacion` de todas las
+  tareas de la ola, juntos, sobre la rama integrada. Prohibidos `pnpm verify`,
+  `vitest run` sin rutas, `supabase test db` sin archivos y e2e completos. El
+  invariante 7(c) ("el lote se verifica entero") se cumple con el lote, no con el
+  repo: `contracts/orchestration.md` no cambia.
+- **G4 · Gate de cierre, nuevo**: la suite completa del repo corre **una sola vez**,
+  al integrar y cerrar el plan. Si falla, se arregla con contrato propio, se
+  re-ejecutan solo los archivos que fallaron y G4 se repite una vez.
+- **`contrato-tarea.md`**: el `verificacion` nombra rutas explícitas de los
+  oráculos de la tarea; el ejecutor itera con ese comando, no con la suite.
+
+## v3.1.0 — 2026-09-05
+
+### El oráculo se demuestra en rojo antes de la ola; el troceo gana doctrina
+
+Cierra el último hueco del invariante 7. La guarda de vacío cazaba el verde hueco
+(0 casos ejecutados), pero nada cazaba **un oráculo que nunca pudo fallar**: un
+`verificacion` escrito contra código que ya existe pasa a la primera y no prueba
+nada. Y el rojo no puede reportarlo el ejecutor —es la parte juzgada—, así que
+tenía que moverse antes de la ola, del lado del loop.
+
+- **`alyp-exec` → v1.2.0.** F0 no termina con el contrato escrito: termina con el
+  oráculo en rojo.
+- **`contrato-tarea.md`**: campos nuevos **`oraculo:`** y **`rojo_esperado:`**, y
+  tabla de oráculos por tipo de trabajo (`test` · `contrato` · `postcondicion` ·
+  `browser` · `eval` · `estructural`). Forzar un unit test donde el comportamiento
+  no es testeable en unidad produce un test decorativo — peor que ningún test,
+  porque vuelve el gate un sello de goma sin que nadie lo note.
+- **`gates.md`**: **G1 se parte en G1↓ (rojo, F0) y G1↑ (verde, F4a)** — el mismo
+  comando corrido por el loop a ambos lados del trabajo. Taxonomía de rojo falso
+  (módulo que la tarea no crea, `SyntaxError`, 0 casos) bajo un criterio único:
+  *el rojo tiene que desaparecer exactamente cuando el objetivo se cumple, y por
+  ninguna otra razón*. La salida del rojo entra al paquete de G0 y convierte su
+  pregunta más cara —"¿el `verificacion` ejerce el objetivo?"— de especulación en
+  dato.
+- **`alyp-maestro` → v1.1.0.** La skill fija **`planificar`** deja de ser un
+  título sin cuerpo: gana la plantilla base del troceo (rebanada vertical, esquema
+  de tarea que traduce 1:1 al contrato, MUST/SHOULD/MAY/MUST NOT, umbrales,
+  Ready/Done). `Produces`/`Consumes` tipados reemplazan las notas en prosa entre
+  tareas. Se descartan dos umbrales gameables: tokens por tarea (el contexto del
+  ejecutor muere con él; la restricción real es que el contrato cierre) y ratio
+  test:código.
+
 ## v3.0.0 — 2026-08-28
 
 ### El loop orquestador baja a tier obrero; el razonador pasa a firmante invocado

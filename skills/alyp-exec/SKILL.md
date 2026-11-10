@@ -1,6 +1,6 @@
 ---
 name: alyp-exec
-version: 1.1.0
+version: 1.4.0
 provides: [execution-loop]
 requires: [orchestration]
 description: >
@@ -56,6 +56,7 @@ Idénticas en ambos modos (§9). Son el contrato del sistema.
 3. **Ledger** en `.claude/run/<slug>/` — lo crea `assets/ledger-init.sh`:
    ```
    estado.md          # UNA línea por tarea: <id> <estado> <riesgo> <ola>  ← tu única vista
+   progreso.json      # el avance contado, lo escribe assets/progreso.sh en F5 (no se deduce)
    contratos/<id>.md  # los contratos emitidos
    reportes/<id>.md   # los reportes completos (NO los releés en bloque — R1)
    gates/<ola>.txt    # salida de los gates mecánicos
@@ -70,6 +71,14 @@ Idénticas en ambos modos (§9). Son el contrato del sistema.
 
 **F0 · Encuadre** (vos, inline). Clasificás riesgo (§7.2), particionás y emitís
 contratos.
+
+**El encuadre no termina con el contrato escrito: termina con el oráculo en
+rojo.** Nombrás el `oraculo` de cada tarea, materializás sus asserts (mecánico →
+cascada local o riesgo 0) y corrés **G1↓**: el `verificacion` tiene que fallar,
+y fallar por el objetivo ausente. Esa salida se pega en `rojo_esperado`. Sin
+ella, el verde de G1↑ no distingue "lo implementó" de "el comando nunca midió
+nada" — y el rojo no puede reportarlo el ejecutor, porque es la parte juzgada
+(R6). Detalle en `references/gates.md` §G1↓.
 
 **F0b · Firma de contratos — G0** (razonador invocado, contexto fresco). Antes de
 despachar, los contratos de riesgo ≥1 van a firma con el paquete acotado de
@@ -132,9 +141,10 @@ concretos por stack en `references/gates.md`.
 
 | Gate | Qué hace | Por qué es independiente |
 |---|---|---|
-| **G1 · Re-ejecución** | Corrés el `verificacion` literal del contrato, de tu lado. Un `Bash` por tarea o uno agregado por ola. | Ese comando lo escribiste vos **antes** de que el ejecutor trabajara. Esa anterioridad es lo que lo vuelve falsable. |
+| **G1 · Re-ejecución** | El mismo `verificacion`, corrido por vos a ambos lados del trabajo: **G1↓** en rojo en F0, **G1↑** en verde al volver. Un `Bash` por tarea o uno agregado por ola. | Ese comando lo escribiste vos **antes** de que el ejecutor trabajara, y lo viste fallar. Anterioridad + demostración del rojo es lo que lo vuelve falsable. |
 | **G2 · Allowlist** | `git diff --name-only` contra la allowlist. Archivo fuera = `❌` automático, sin juicio. | Binario, no interpretable. Junto con la exclusión de tests del contrato, cierra el reward-hacking. |
-| **G3 · Gate de ola** | Typecheck + suite completa antes de despachar la ola siguiente. | La partición por archivos disjuntos **no** garantiza independencia semántica (tipos compartidos, contratos de API). Es lo único que caza integración rota entre tareas individualmente verdes. |
+| **G3 · Gate de ola** | Typecheck/lint de lo afectado + los `verificacion` de **todas** las tareas de la ola, juntos, sobre la rama integrada. **Nunca la suite completa.** | La partición por archivos disjuntos **no** garantiza independencia semántica (tipos compartidos, contratos de API). Es lo único que caza integración rota entre tareas individualmente verdes — y para eso basta el lote, no el repo. |
+| **G4 · Gate de cierre** | La suite completa del repo (`pnpm verify`, pgTAP entero, e2e), **una sola vez**, al integrar y cerrar el plan. | Caza lo que ningún oráculo acotado mira (regresiones lejos de lo tocado). Correrla en cada tarea u ola cuesta horas sin cazar más que G1+G3. |
 
 Los tres son comandos, no razonamiento: re-ejecutar cuesta órdenes de magnitud
 menos que releer diffs. Con G1–G3 en su lugar, el muestreo adversarial es
@@ -164,8 +174,17 @@ precaución.
 
 ## 8. F5 · Cierre y reintentos
 
-**F5 · Integración**: actualizás `estado.md`, armás la ola siguiente, y sintetizás
-para el usuario **solo al cierre** (no ola por ola).
+**F5 · Integración**: actualizás `estado.md`, **escribís el avance con
+`assets/progreso.sh`** (total, aceptadas, en curso, bloqueadas, ola y tarea actual;
+reglas en `references/progreso.md`), armás la ola siguiente, y sintetizás para el
+usuario **solo al cierre** (no ola por ola). El número de `progreso.json` es el
+único que se reporta: el mod `agent-steps` lo muestra en cualquier proyecto y
+ventana, y deducirlo de `estado.md` da cifras distintas según quién lea.
+
+**Cierre del plan**: tras la última ola corrés **G4** (`references/gates.md` §G4),
+la única corrida de suites completas. Si falla, se clasifica como abajo, se arregla
+con su contrato y se re-ejecutan **solo** los archivos que fallaron más los
+oráculos de lo tocado; G4 se repite **una** vez para confirmar.
 
 **Ante `❌`, clasificá la falla antes de escalar** — escalar sin clasificar quema
 presupuesto:

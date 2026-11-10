@@ -114,7 +114,9 @@ const veredictos = await parallel(criticos.map((r) => () =>
         { model: 'opus', effort: 'xhigh', phase: 'Riesgo2', label: `rev:${r.contrato.id}` })
 ))
 
-// G3 — gate de ola: lo único que caza integración rota entre tareas verdes
+// G3 — gate de ola: lo único que caza integración rota entre tareas verdes.
+// args.gateOla es ACOTADO: typecheck/lint de lo afectado + los verificacion de las
+// tareas de esta ola. La suite completa (G4) no va en un workflow de ola.
 phase('GateOla')
 const g3 = await agent(
   `Ejecutá: ${args.gateOla}\nDevolvé verde, casosEjecutados y las líneas de falla si hay.`,
