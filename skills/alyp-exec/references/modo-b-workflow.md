@@ -136,9 +136,10 @@ return {
 - **`pipeline` y no `parallel` entre implementación y gates**: no hay dependencia
   cruzada entre tareas, así que una barrera solo agregaría espera. La barrera
   aparece recién en G3, que sí necesita todo el lote junto.
-- **La firma final sigue siendo del orquestador.** El workflow devuelve
-  `criticos` como **borrador**; el veredicto de riesgo 2 lo firmás vos al leer el
-  retorno. Un script no firma.
+- **La firma no es del script ni del loop.** El veredicto de riesgo 2 lo da el
+  razonador invocado con contexto fresco (F4b), de a uno y re-ejecutando G1/G2
+  (R7; contrato `orchestration` invariantes 8 y 9). El loop lee `criticos` y
+  rutea; no re-aprueba. Un script no firma.
 - **Resume**: si el harness muere a mitad, `Workflow({scriptPath, resumeFromRunId})`
   reusa el prefijo intacto. Editar una etapa invalida esa etapa y las siguientes,
   no las anteriores.

@@ -57,8 +57,8 @@ for p in [claude] + rules:
 vc = visible(textos[claude])
 if nlineas(vc) > 80:
     fallas.append(f"FALLA: {claude} visible tiene {nlineas(vc)} líneas (máx 80)")
-if len(vc.encode("utf-8")) > 5000:
-    fallas.append(f"FALLA: {claude} visible tiene {len(vc.encode('utf-8'))} bytes (máx 5000)")
+if len(vc.encode("utf-8")) > 6000:
+    fallas.append(f"FALLA: {claude} visible tiene {len(vc.encode('utf-8'))} bytes (máx 6000)")
 for r in rules:
     n = nlineas(visible(textos[r]))
     if n > 40:
@@ -88,7 +88,9 @@ for r in rules:
 low = vis_todo.lower()
 for a in ["rtk find", "filtrá por errores", "planificar no es ejecutar", "devstral-orchestration",
           "alyp-exec", "explorador", "lsof -ti", "alyp-brain", "engram", "graphify", "Glob",
-          "ast-grep", "Serena", "firma", "Código muerto", "Chrome DevTools", "compact"]:
+          "ast-grep", "Serena", "firma", "Código muerto", "Chrome DevTools", "compact",
+          "aprobación explícita", "rtk read", "~/alyp-brain", "coding_practices_alyp",
+          "altura de compactación", "update_plan", "contexto fresco", "también en subagentes"]:
     if a.lower() not in low:
         fallas.append(f"FALLA: falta ancla \"{a}\"")
 

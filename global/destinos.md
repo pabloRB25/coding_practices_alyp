@@ -65,7 +65,7 @@ HTML en línea propia (solo así Claude Code lo quita; inline se inyecta), queda
 | 57 | Mapeo tier→modelo y límites en `~/.claude/capacity.yaml`; `versions/` | CLAUDE.md §Orquestación, viñeta 3; `versions/` en devstral-orchestration (ya estaba) |
 | 58 | Orquestador Sonnet: routing, contratos, olas, G1–G3, síntesis; no firma | CLAUDE.md §Orquestación, viñeta 1; devstral-orchestration §Los 6 roles |
 | 59 | Medición 83,8% / 57,1% / 5,6% | devstral-orchestration (ya estaba); CLAUDE.md §Orquestación (coment.) |
-| 60 | Loop Opus/Fable firma inline; Haiku no orquesta | devstral-orchestration §¿Quién orquesta? (ya estaba) |
+| 60 | Loop Opus/Fable firma inline (revertido en v3.4.0: G0 y riesgo 2 van a contexto fresco); Haiku no orquesta | devstral-orchestration §¿Quién orquesta? (ya estaba) |
 | 61 | Opus firma en G0, diff de riesgo 2, veredicto de merge; firma final | CLAUDE.md §Orquestación, viñeta 1; devstral-orchestration (ya estaba) |
 | 62 | Consultor Fable: solo invocación explícita; cuándo; paquete cerrado | CLAUDE.md §Orquestación, viñeta 1; detalle en devstral-orchestration §Consultor Fable |
 | 63 | Subagentes Opus para razonamiento pesado, máx 2-3 por ola; heisenbug con repro | devstral-orchestration §Matriz / §Scheduler (ya estaba) |

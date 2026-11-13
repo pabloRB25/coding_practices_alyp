@@ -13,16 +13,17 @@
 <!-- Skills propios: alyp-new-project (scaffolding SaaS), alyp-agentic-standards (estándar de código), agentic-logging + alyp-observability (logs/OTel), devstral-orchestration (routing multi-modelo), alyp-exec (loop de ejecución), alyp-graph (radio de impacto y piso de riesgo de un contrato), alyp-codebase-maintenance (mantenimiento periódico). Skills en ~/.claude/skills/. Vault alyp-brain = repo privado alyp-studio/alyp-brain, plan y decisiones en su docs/. -->
 - SaaS propios y para clientes. Stack Turborepo · Next.js · Supabase · Vercel · GitHub; convención `agentic-standard: v1`.
 - Logs, códigos de error y dominio en español (`agenticLogger`, `traceId`, `contexto`).
-- Antes de responder sobre un cliente, proyecto, pendiente o relación, llamá `ficha` de alyp-brain (o `pendientes`/`proyectos`/`buscar`) y citá la fuente; para correo, agenda y repos usá sus `identidad.dominios`/`repos`.
+- Antes de responder sobre un cliente, proyecto, pendiente o relación, llamá `ficha` de alyp-brain (o `pendientes`/`proyectos`/`buscar`) y citá la fuente; para correo, agenda y repos usá sus `identidad.dominios`/`repos`. Vault en `~/alyp-brain` (su MCP es de lectura salvo `marcar_tarea`, que escribe en el vault); plan y decisiones en `~/alyp-brain/docs/`.
 
 ## RTK y búsquedas
 <!-- Evidencias fechadas de los falsos negativos en ~/.claude/RTK.md. -->
-- Usá `rtk` explícito en read/ls/git/npm/vitest/lint/gh/curl/docker; detalle en `~/.claude/RTK.md`.
+- Usá `rtk` explícito: `cat`→`rtk read`, `ls`→`rtk ls`, git/gh/curl/docker exec/`npx -y`/dotnet→`rtk <cmd>`, `npm run`→`rtk npm run`, vitest→`rtk vitest run`, eslint→`rtk lint eslint`, `diff`→`rtk diff`, `wc -l`→`rtk wc -l`; no dupliques si ya empieza con `rtk`. Detalle en `~/.claude/RTK.md`.
 - Nunca `rtk find` ni `rtk grep`: dan falsos negativos verificados. Buscá con find/fd/Glob, grep/Grep, ast-grep o Serena.
 - Filtrá por errores (`grep -E ": error"`), nunca truncar la salida por posición (`| tail`).
 
 ## Navegación de código
 - Progresión: `find`/Glob → `grep -rn`/Grep → ast-grep → Serena → leer solo rangos. Repo grande: medilo antes con `tokei`.
+- `ast-grep` con rewrite, `fd --exec`, `hyperfine`, `direnv allow` y `mise install` ejecutan o modifican estado: requieren aprobación explícita y nunca se preautorizan con comodines amplios.
 
 ## Costo de contexto
 <!-- Sobre 94.222 requests el cache_read es el 67% del costo; el costo por request va de $0,059 (50-150K) a $0,435 (500-800K); compactar cerca de 150K rinde 2,6x más que a 300K; altura de compactación 388.723 en ago-2026, objetivo <200K. Detalle en el skill alyp-token-savings §Métricas de costo. -->
@@ -30,11 +31,11 @@
 - Rutas absolutas, nunca un `cd` suelto (`git -C`, `pnpm --dir` o `cd X && cmd`); encadená con `&&`, nunca con `;`, ni a través de un punto de decisión (`test && commit`).
 <!-- No reducirlo a "no uses cd": pnpm test corre en el directorio equivocado y da un resultado plausible pero falso. -->
 - Agrupá en un mensaje las llamadas independientes (agresivo en lectura); en Edit/Write, solo archivos distintos sin orden entre sí.
-- Barridos y Bash de reconocimiento van al `explorador`: se delega la exploración, nunca la verificación. Medí con `~/.claude/scripts/token-audit.sh`.
+- Barridos y Bash de reconocimiento van al `explorador`: se delega la exploración, nunca la verificación. Medí con `~/.claude/scripts/token-audit.sh`; la métrica principal es la altura de compactación (objetivo <200K).
 
 ## Procesos
 <!-- 2026-10-21 23:28: un pkill -f next-server de un subagente coincidió con la caída de Docker Desktop y tmux; corren varias sesiones de Claude en paralelo. -->
-- Matá por puerto (`lsof -ti tcp:<puerto> -sTCP:LISTEN | xargs kill`) o PID guardado (`$!`), nunca por nombre (`pkill`, `killall`); contenedores con `docker stop`. Lo hace cumplir `guarda-kill.sh`.
+- Matá por puerto (`lsof -ti tcp:<puerto> -sTCP:LISTEN | xargs kill`) o PID guardado (`$!`), nunca por nombre (`pkill`, `killall`); contenedores con `docker stop`. Lo hace cumplir `guarda-kill.sh`, también en subagentes.
 
 ## Orquestación de modelos
 <!-- v3.0. Medido may-ago 2026: el loop era el 83,8% del costo; se paga por releer, no por pensar. `[QA local no disponible]` = Ollama apagado, no un error tuyo (ver devstral-orchestration). -->
@@ -42,9 +43,10 @@
 - Subagentes `implementador`, `explorador`, `revisor`; lo mecánico y verificable va al local (`delegate_to_devstral`). Leé poco, delegá mucho, recibí resúmenes.
 - Antes de orquestar o delegar por primera vez, invocá `devstral-orchestration` (quién) y `alyp-exec` (cómo fluye). Límites en `~/.claude/capacity.yaml`.
 - Si dudás del nivel, subí uno. Nunca delegues seguridad, secretos, infra ni irreversibles; al local, solo lo verificable.
-- Nunca aceptes trabajo delegado sin re-ejecutar vos la verificación fijada antes de delegar. No firmes tus propios contratos; sin tier razonador, riesgo 2 se detiene y se escala al usuario.
+- Nunca aceptes trabajo delegado sin re-ejecutar vos la verificación fijada antes de delegar. No firmes tus propios contratos, tampoco si el loop es Opus o Fable: G0 y riesgo 2 van a una invocación de contexto fresco; sin ella, riesgo 2 se detiene y se escala al usuario.
 
 ## Routing de skills
+- `contracts/` y `guides/` viven en `~/Dev/alyp-studio/coding_practices_alyp`.
 - Spec técnico → `superpowers:brainstorming`; PRD → `product-management:write-spec`; un PRD previo es input, no se reescribe.
 - Planes: loop de `alyp-exec`, roles en `contracts/execution.md` vía `subagent-driven-development`; `executing-plans` solo a pedido; nunca el agente `Plan`.
 - Explorar repos Alyp → `explorador`, no `Explore`. Review y carriles: tablas de `devstral-orchestration`.
@@ -59,6 +61,6 @@
 
 ## Avance y verificación
 <!-- El mod agent-steps vive en coding_practices_alyp/mods/agent-steps. Dos lectores de estado.md dieron 29/41 y 31/41 sobre el mismo archivo. -->
-- Trabajo de ≥3 pasos: `TaskCreate` y `TaskUpdate` (`in_progress`/`completed`); alimentan el % del panel Pasos.
+- Trabajo de ≥3 pasos: en la CLI, `TaskCreate`/`TaskUpdate` (`in_progress`/`completed`, alimentan el % del panel Pasos); en la app de escritorio, su lista de tareas (`update_plan`), que los reemplaza.
 - Con `alyp-exec`, el % oficial es el de `progreso.json`, nunca uno deducido de `estado.md`.
 - Browser: Chrome DevTools MCP sobre previews DEV; nunca flujos destructivos en PROD sin OK explícito (detalle en rules/frontend.md de ~/.claude).
