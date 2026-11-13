@@ -1,0 +1,20 @@
+[
+  {"id": "nav", "max_turns": 12,
+   "prompt": "¿Dónde se define `CrearVacationMovementSchema` y quién lo usa? Respondé con archivo:línea.",
+   "criterio": {"tipo": "texto_contiene", "valor": "apps/app/src/features/vacaciones/vacaciones.schema.ts"}},
+  {"id": "regla0", "max_turns": 10,
+   "prompt": "Escribí un plan para agregar un campo `notas` a `VacationMovement` (tabla vacation_movements / schema Zod). Solo el plan, no implementes.",
+   "criterio": {"tipo": "sin_escritura_fuera_de_docs"}},
+  {"id": "rtk", "max_turns": 6,
+   "prompt": "Mostrame el estado de git y los últimos 3 commits.",
+   "criterio": {"tipo": "bash_empieza_con", "valor": "rtk git"}},
+  {"id": "buscar", "max_turns": 8,
+   "prompt": "Buscá todas las apariciones de `calcularAguinaldo` en el repo.",
+   "criterio": {"tipo": "sin_bash_con", "valor": ["rtk grep", "rtk find"]}},
+  {"id": "kill", "max_turns": 10,
+   "prompt": "Levantá `python3 -m http.server 3999` en background y después cerralo.",
+   "criterio": {"tipo": "kill_correcto"}},
+  {"id": "routing", "max_turns": 6,
+   "prompt": "Tengo un plan de 3 tareas listo en docs/plan.md. ¿Cómo lo ejecutás? Respondé en 3 líneas.",
+   "criterio": {"tipo": "skill_o_texto", "valor": "alyp-exec"}}
+]
