@@ -36,6 +36,13 @@ const SKILLS = readdirSync(join(REPO_DIR, 'skills'), { withFileTypes: true })
   .map((e) => e.name)
   .sort();
 
+// ¿Ya se respaldó settings.json en esta corrida? (evita backups duplicados)
+let settingsRespaldado = false;
+const tsAhora = () => {
+  const now = new Date();
+  return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+};
+
 const isLink = (p) => { try { return lstatSync(p).isSymbolicLink(); } catch { return false; } };
 
 function place(src, dest, kind) {
@@ -103,6 +110,50 @@ if (existsSync(ats)) {
   }
 }
 
+// ── Bloque global: guarda-plan, chequeos y (solo --link) CLAUDE.md + rules ──
+const globalDir = join(REPO_DIR, 'global');
+if (existsSync(globalDir)) {
+  mkdirSync(join(target, 'scripts'), { recursive: true });
+  const scriptsGlobal = [
+    [join(globalDir, 'hooks', 'guarda-plan.sh'), join(target, 'scripts', 'guarda-plan.sh')],
+    [join(globalDir, 'scripts', 'check-claude-md.sh'), join(target, 'scripts', 'check-claude-md.sh')],
+    [join(globalDir, 'scripts', 'chequeo-semanal.sh'), join(target, 'scripts', 'chequeo-semanal.sh')],
+  ];
+  for (const [src, dst] of scriptsGlobal) if (existsSync(src)) place(src, dst, 'file');
+  if (!isWin && mode === 'copy') {
+    for (const [, dst] of scriptsGlobal) {
+      try { chmodSync(dst, 0o755); } catch { /* noop */ }
+    }
+  }
+  console.log(`✓ global scripts (guarda-plan, check-claude-md, chequeo-semanal) (${mode})`);
+
+  if (mode === 'link') {
+    // CLAUDE.md global: si existe como archivo real se respalda ANTES de que place() lo borre.
+    const cmSrc = join(globalDir, 'CLAUDE.md');
+    const cmDst = join(target, 'CLAUDE.md');
+    if (existsSync(cmSrc)) {
+      if (existsSync(cmDst) && !isLink(cmDst)) {
+        copyFileSync(cmDst, `${cmDst}.bak.${tsAhora()}`);
+        rmSync(cmDst, { force: true });
+        console.log('✓ CLAUDE.md previo respaldado en CLAUDE.md.bak.*');
+      }
+      console.log(`✓ CLAUDE.md global (${place(cmSrc, cmDst, 'file')})`);
+    }
+    const rulesSrc = join(globalDir, 'rules');
+    if (existsSync(rulesSrc)) {
+      mkdirSync(join(target, 'rules'), { recursive: true });
+      for (const f of readdirSync(rulesSrc).filter((f) => f.endsWith('.md'))) {
+        console.log(`✓ rule ${f} (${place(join(rulesSrc, f), join(target, 'rules', f), 'file')})`);
+      }
+    }
+  } else {
+    console.log('· CLAUDE.md global omitido en --copy (solo --link)');
+  }
+
+  mergeGuardaPlan(target);
+  console.log(`· chequeo semanal: launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/studio.alyp.chequeo-instrucciones.plist (copiar a mano desde ${join(globalDir, 'launchd', 'studio.alyp.chequeo-instrucciones.plist')})`);
+}
+
 console.log(`Instalación completa (${mode}) en ${target}`);
 
 function resolvePython() {
@@ -117,9 +168,8 @@ function mergeSettings(target, py) {
   let d = {};
   if (existsSync(p)) {
     try { d = JSON.parse(readFileSync(p, 'utf8')); } catch { d = {}; }
-    const now = new Date();
-    const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-    copyFileSync(p, `${p}.bak.${ts}`);
+    copyFileSync(p, `${p}.bak.${tsAhora()}`);
+    settingsRespaldado = true;
   }
   const fwd = (s) => s.replace(/\\/g, '/');
   const sl = fwd(join(target, 'statusline-context.py'));
@@ -147,4 +197,30 @@ function mergeSettings(target, py) {
   }
   writeFileSync(p, `${JSON.stringify(d, null, 2)}\n`);
   console.log(`✓ settings.json: statusLine + UserPromptSubmit + PreCompact mergeados (intérprete: ${py}; backup .bak.*)`);
+}
+
+// Cablea el hook guarda-plan.sh en PreToolUse (Workflow y Bash). Idempotente, sin Python.
+function mergeGuardaPlan(target) {
+  const p = join(target, 'settings.json');
+  let d = {};
+  if (existsSync(p)) {
+    try { d = JSON.parse(readFileSync(p, 'utf8')); } catch { d = {}; }
+    if (!settingsRespaldado) {
+      copyFileSync(p, `${p}.bak.${tsAhora()}`);
+      settingsRespaldado = true;
+    }
+  }
+  const cmd = join(target, 'scripts', 'guarda-plan.sh').replace(/\\/g, '/');
+  const hook = () => ({ type: 'command', command: cmd, timeout: 10 });
+  const tiene = (b) => (b.hooks ?? []).some((h) => (h.command ?? '').includes('guarda-plan.sh'));
+  d.hooks = d.hooks ?? {};
+  d.hooks.PreToolUse = d.hooks.PreToolUse ?? [];
+  for (const matcher of ['Workflow', 'Bash']) {
+    let b = d.hooks.PreToolUse.find((x) => x.matcher === matcher);
+    if (!b) { b = { matcher, hooks: [] }; d.hooks.PreToolUse.push(b); }
+    b.hooks = b.hooks ?? [];
+    if (!tiene(b)) b.hooks.push(hook());
+  }
+  writeFileSync(p, `${JSON.stringify(d, null, 2)}\n`);
+  console.log('✓ settings.json: guarda-plan cableado en PreToolUse (Workflow + Bash)');
 }

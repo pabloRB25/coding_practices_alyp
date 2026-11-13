@@ -2,3 +2,6 @@
 .serena/
 .claude/run/
 .claude/worktrees/
+
+# resultados del eval A/B (transcripts locales con contenido de repos de clientes)
+global/eval/resultados/
