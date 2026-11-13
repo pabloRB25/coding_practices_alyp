@@ -408,6 +408,10 @@ El hook `supervise-devstral.py` emite un veredicto. Seguí:
 ## Reglas generales
 
 - Nunca aceptes trabajo delegado (local, Sonnet u Opus) sin su resumen/veredicto.
+- Y nunca sobre evidencia que generó el propio ejecutor: re-ejecutá vos el criterio de
+  verificación que fijaste antes de delegar (contrato `orchestration` invariante 7).
+- No firmes tus propios contratos: los de riesgo ≥1 van a G0 y los diffs de riesgo 2 a
+  firma Opus, de a uno (invariantes 8 y 9).
 - Un subagente Opus también rinde cuentas: pedile evidencia anclada
   (`archivo:línea`, test, salida de comando) igual que al `revisor`.
 - El nombre `delegate_to_devstral` y los archivos `*devstral*` se conservan por

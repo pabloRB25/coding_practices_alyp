@@ -2,7 +2,7 @@
 name: alyp-token-savings
 version: 1.0.1
 provides: [token-savings]
-description: Instala o audita el setup de ahorro de tokens de Claude Code de Alyp Studio en ~/.claude — statusline de contexto (K/% vivo), hook context-guard (aviso no-bloqueante al cruzar 200K), política RTK explícita, y el merge de keys en settings.json. Se instala vía el installer del ecosistema (node scripts/install.mjs, modos --copy/--link) de coding_practices_alyp. Invocar cuando el usuario pida "instalar el ahorro de tokens", "montar la statusline de contexto", "setup de tokens en esta máquina", "auditar el ahorro de tokens", o al configurar una máquina/perfil nuevo de Claude Code.
+description: Instala o audita el setup de ahorro de tokens de Claude Code de Alyp Studio en ~/.claude — statusline de contexto (K/% vivo), hook context-guard (aviso no-bloqueante en la banda 150K/300K), política RTK explícita, y el merge de keys en settings.json. Se instala vía el installer del ecosistema (node scripts/install.mjs, modos --copy/--link) de coding_practices_alyp. Invocar cuando el usuario pida "instalar el ahorro de tokens", "montar la statusline de contexto", "setup de tokens en esta máquina", "auditar el ahorro de tokens", o al configurar una máquina/perfil nuevo de Claude Code.
 ---
 
 # alyp-token-savings
@@ -115,6 +115,14 @@ Objetivo con la banda 150K/300K: **<200K**.
 El costo por request escala fuerte con el contexto: $0,059 (50-150K) → $0,127 (150-300K)
 → $0,235 (300-500K) → $0,435 (500-800K). Compactar cerca de 150K rinde **2,6×** más que
 dejar correr hasta 300K, así que el escalón de 300K endurece el mensaje en vez de repetirlo.
+
+### Métricas de costo
+
+Cada llamada a una herramienta re-lee todo el contexto. Medido sobre **94.222 requests**:
+el `cache_read` es el **67%** del costo total, y el **47,5%** de ese costo vive en los
+requests que superan 300K de contexto (que son solo el 20,6% de los requests).
+El 33% de los requests del orquestador supera 300K, contra el 6,1% de los subagentes:
+por eso barridos, trawls de logs y Bash de reconocimiento van al `explorador`.
 
 ### Tres trampas del método de medición
 
