@@ -1,6 +1,6 @@
 ---
 name: devstral-orchestration
-version: 3.0.0
+version: 3.1.0
 provides: [orchestration]
 description: >
   Protocolo de orquestación multi-modelo v3.0 de Claude Code para Alyp Studio — SONNET orquesta y ejecuta, OPUS firma por invocación (contratos de ola G0, diff de riesgo 2, veredicto de merge), Fable es consultor de invocación explícita, offloading local según umbral. El loop Sonnet rutea entre 6 roles: loop orquestador Sonnet, firmante Opus invocado, consultor Fable (veredicto ⬆ FABLE), subagentes Sonnet (implementador/explorador/revisor), ejecutor local vía delegate_to_devstral, y QA local por hooks. Invocar ANTES de orquestar o delegar por primera vez en la sesión, o para interpretar veredictos del hook (✅/⚠/❌/🚨). Versiones anteriores en versions/. Mapeo tier→modelo y límites del entorno en ~/.claude/capacity.yaml (contrato: contracts/orchestration.md).
@@ -108,8 +108,8 @@ prompt declara qué modelo sos ("You are powered by …"). Ramificá:
 | Sos | Modo | Reglas |
 |---|---|---|
 | **Sonnet** | **Estándar** | Todo este skill tal cual. Routeás, descomponés en contratos, despachás olas, corrés G1–G3 y sintetizás. **No firmás**: los contratos de riesgo ≥1 van a G0 y los diffs de riesgo 2 a firma, ambos con `revisor`/`implementador` en `model:"opus"`. Nunca resolvés seguridad crítica por tu cuenta. |
-| **Opus** | Excepcional | El usuario te eligió como loop a mano. Orquestá igual, y en ese caso firmás vos: G0 y riesgo 2 se resuelven inline, sin invocación aparte (sos el tier razonador). Avisá UNA vez que el modo estándar del equipo es Sonnet (`/model claude-sonnet-5`) y que el loop Opus cuesta ~5× por token en el tramo >300K. |
-| **Fable** | Excepcional | Loop elegido a mano. Orquestá igual y firmá vos; el `consultor` NO aplica (sos el techo). Avisá UNA vez que el modo estándar es Sonnet. |
+| **Opus** | Excepcional | El usuario te eligió como loop a mano. Orquestá igual, pero no firmás lo que escribiste: G0 y riesgo 2 van igual a una invocación de contexto fresco (`revisor` con `model:"opus"`). El que escribe el contrato no lo firma, sea cual sea su tier (contrato `orchestration` inv. 8, v1.4). Avisá UNA vez que el modo estándar del equipo es Sonnet (`/model claude-sonnet-5`) y que el loop Opus cuesta ~5× por token en el tramo >300K. |
+| **Fable** | Excepcional | Loop elegido a mano. Orquestá igual; G0 y riesgo 2 van a una invocación de contexto fresco (`revisor` con `model:"opus"`), no los firmás vos. El `consultor` NO aplica (sos el techo). Avisá UNA vez que el modo estándar es Sonnet. |
 | **Haiku** | **No apto** | No orquestes. Avisá y pedí cambio de modelo: el loop escribe los contratos, y un contrato mal escrito deja huecos los tres gates mecánicos. |
 
 > **La regla que no cambia**: el loop rutea hacia la firma, no firma. Que el

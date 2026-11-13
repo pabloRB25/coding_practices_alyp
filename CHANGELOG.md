@@ -1,5 +1,37 @@
 # Changelog
 
+## v3.4.0 — 2026-11-13
+
+### Restituciones al CLAUDE.md global y firma con contexto fresco en todo loop
+
+La poda del CLAUDE.md global (PR #14) dejó fuera de lo que se carga siempre seis
+reglas que siguen vigentes, y cuatro archivos se contradecían sobre quién firma
+cuando el loop es Opus o Fable.
+
+- **`global/CLAUDE.md`**: vuelven la tabla de equivalencias de RTK; la
+  aprobación explícita para `ast-grep` con rewrite, `fd --exec`, `hyperfine`,
+  `direnv allow` y `mise install`; la ubicación del vault (`~/alyp-brain`, con
+  `marcar_tarea` como única escritura de su MCP); dónde viven `contracts/` y
+  `guides/`; la altura de compactación como métrica, y que `guarda-kill.sh`
+  también aplica en subagentes (verificado en una sesión headless). La lista de
+  tareas queda dicha por entorno: `TaskCreate` en la CLI, `update_plan` en la
+  app de escritorio.
+- **`check-claude-md.sh`**: ocho anclas nuevas para lo restituido; el tope pasa
+  de 5.000 a 6.000 bytes visibles (el de 5.000 no tenía respaldo; la guía
+  oficial solo pide menos de 200 líneas).
+- **`contracts/orchestration.md` → v1.4**: el invariante 8 rige sea cual sea el
+  tier del loop, y el firmante de riesgo 2 es siempre una invocación con
+  contexto fresco. Origen: un G0 firmado inline por un loop Opus dejó pasar un
+  supuesto falso que encontró después un revisor Opus con contexto limpio. Es
+  un solo caso.
+- **`devstral-orchestration` → v3.1.0**: los loops Opus y Fable mandan G0 y
+  riesgo 2 a `revisor` con `model:"opus"`, en vez de firmar inline.
+- **`alyp-exec/references/modo-b-workflow.md`**: la nota que decía que el
+  orquestador firma el riesgo 2 (anterior a v3.0) queda alineada con R7.
+- **`agents/revisor.md`** (líneas 8 y 41): su prompt decía que, en Opus, devuelve
+  un borrador y que la aprobación final es del orquestador. Ahora dice que su veredicto es
+  la firma final, como ya decía su `description`.
+
 ## v3.3.0 — 2026-11-10
 
 ### El avance de una corrida se ve en cualquier proyecto y ventana

@@ -1,4 +1,4 @@
-# Contrato: orquestación multi-modelo (v1.3)
+# Contrato: orquestación multi-modelo (v1.4)
 
 Protocolo agnóstico de modelos concretos. Los 6 roles son TIERS; el mapeo
 tier→modelo y los límites del entorno viven en `capacity.yaml` (por máquina).
@@ -85,16 +85,21 @@ tier→modelo y los límites del entorno viven en `capacity.yaml` (por máquina)
    sistema cuelga de que `objetivo`, `verificacion`, `riesgo` y `archivos` estén
    bien escritos, y **quien los escribe es el loop**. Un loop que redacta el
    criterio con el que después se absuelve reintroduce el sello de goma un nivel
-   más arriba. Por eso, cuando el loop no es del tier razonador:
+   más arriba. Por eso, sea cual sea el tier del loop:
    - **(a) Firma previa.** Los contratos de riesgo ≥1 los firma el razonador
      invocado **antes** de despacharse la ola, sobre el contrato — no sobre el
      código. Es la única invocación de juicio que ocurre antes de ejecutar.
    - **(b) El firmante re-ejecuta lo que firma.** Para lo de riesgo 2, quien
-     firma corre por su cuenta el gate de re-ejecución y el de alcance. Un
-     paquete curado por el loop no funda una firma.
+     firma —una invocación con contexto fresco, nunca el loop— corre por su
+     cuenta el gate de re-ejecución y el de alcance. Un paquete curado por el
+     loop no funda una firma.
    - **(c) Piso de riesgo mecánico.** La clasificación de riesgo no puede
      depender solo del juicio del loop: el perfil declara rutas cuya sola
      presencia en la allowlist fuerza riesgo 2, sin juicio y sin negociación.
+   *(Enmendado en v1.4: hasta v1.3 esto regía solo "cuando el loop no es del
+   tier razonador". El 2026-11-13 un loop Opus firmó inline un G0 cuyo supuesto
+   falso encontró después un revisor Opus con contexto limpio: el sesgo es de
+   quien escribe el criterio, no de su tier. Evidencia de un solo caso.)*
 9. **La firma no es agregable donde el gate no alcanza.** Riesgo 0 y 1 cierran
    por gates mecánicos, y su firma puede agruparse por ola o por lote. El diff de
    riesgo 2 se firma **de a uno**: el modo de falla que cubre —la política
@@ -115,5 +120,5 @@ tier→modelo y los límites del entorno viven en `capacity.yaml` (por máquina)
   juez" para ese caso. Con el razonador ya invocado como validador estructural,
   esa consulta pasaba a ser rutina y sacaba al juez de su rol de desempate.)*
 - **Sin tier razonador disponible**: no hay degradación válida para riesgo 2. Se
-  detiene y se escala al usuario. Un loop obrero que firma su propio riesgo 2
-  viola los invariantes 2 y 8 a la vez.
+  detiene y se escala al usuario. Un loop que firma su propio riesgo 2 viola
+  el invariante 8, y si es obrero también el 2.

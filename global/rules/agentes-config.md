@@ -15,4 +15,3 @@ paths:
 - `~/.serena/serena_config.yml` lo gestiona la máquina: Serena lo reescribe al activar un proyecto, borra los comentarios y poda de `projects:` toda ruta sin `.serena/project.yml`.
 - No documentes razones en ese archivo (se pierden) ni agregues proyectos a mano: un repo se registra solo la primera vez que se lo activa por ruta.
 <!-- Verificado 2026-08-31: de 19 rutas escritas a mano, Serena descartaba 14 con un warning por arranque. -->
-- Nunca preautorices herramientas que modifican estado (ast-grep rewrite, fd --exec, direnv allow, mise install) con comodines amplios.

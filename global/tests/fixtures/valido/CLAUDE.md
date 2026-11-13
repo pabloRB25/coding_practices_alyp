@@ -9,4 +9,7 @@
 - Código muerto se borra.
 - Contexto: `/compact` a tiempo.
 - Skills en ~/.claude/skills
+- Herramientas que modifican estado: aprobación explícita. `cat` → `rtk read`.
+- Vault en ~/alyp-brain; contracts/ en coding_practices_alyp.
+- Métrica: altura de compactación. En la app, update_plan. Firma con contexto fresco. guarda-kill también en subagentes.
 <!-- comentario cerrado, invisible -->
