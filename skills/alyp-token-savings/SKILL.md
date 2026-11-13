@@ -19,7 +19,7 @@ de Claude Code en `~/.claude`. Idempotente: reinstalar re-sincroniza sin romper 
 | `artifacts/hooks/precompact-preserve.py` | `~/.claude/hooks/` | PreCompact **no-bloqueante**: ledger de compactaciones en disco + recordatorio de `/compact <qué preservar>` |
 | `artifacts/token-audit.sh` | `~/.claude/scripts/` | Mide el consumo real de contexto desde los transcripts |
 | `artifacts/verificar-hooks.py` | `~/.claude/scripts/` | Verifica que los hooks **se comporten** bien (no sólo que existan) |
-| `artifacts/RTK.md` | `~/.claude/` | Política: usar `rtk` explícito siempre (el hook PreToolUse no reescribe) |
+| `artifacts/RTK.md` | `~/.claude/` | Política: usar `rtk` explícito siempre; `grep`/`find` excluidos de la reescritura del hook |
 | keys `statusLine` + `UserPromptSubmit` + `PreCompact` | `~/.claude/settings.json` | Merge preservando lo existente (respalda antes) |
 
 ## Cómo instalar
@@ -87,9 +87,14 @@ print('precompact:', w('PreCompact','precompact-preserve'))"
   entero y escupe el esquema como error). Lo único que dirige una compactación es el
   argumento de `/compact`, que lo escribe la persona; por eso el aviso de 150K/300K lo
   trae listo para pegar.
-- **RTK explícito**: el hook `PreToolUse` intenta reescribir comandos pero el harness no
-  aplica el `updatedInput` de forma confiable (~0.9% cobertura). Por eso la política es
-  prependar `rtk` a mano en lecturas/búsquedas/git/build. Aplica al agente y a subagentes.
+- **RTK explícito**: el hook `PreToolUse` (`rtk hook claude`) sí reescribe (verificado
+  2026-11-13, rtk 1.1.0), pero no cubre todo, así que la política sigue siendo prependar
+  `rtk` a mano en lecturas/git/build. Aplica al agente y a subagentes. Excepción: `grep` y
+  `find` van excluidos en la config de rtk (`[hooks] exclude_commands = ["grep", "find"]`,
+  en macOS `~/Library/Application Support/rtk/config.toml`) porque `rtk grep`/`rtk find`
+  dan falsos negativos (ver `artifacts/RTK.md`). El installer no gestiona esa config:
+  aplicala a mano en cada máquina y revisala tras cada upgrade de rtk con
+  `rtk rewrite "grep -rn x ."` (debe salir con exit 1 y sin salida).
 
 ## Ajustes comunes
 
